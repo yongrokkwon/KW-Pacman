@@ -13,7 +13,7 @@ namespace KW_Pacman
 
         /* === 공개 프로퍼티 (Form이 읽음) === */
         public PointF Position { get; private set; }
-        public Direction Facing { get; private set; } = Direction.Right;
+        public Direction Facing { get; private set; }
         public int FrameIndex { get; private set; } = 0;    // 0,1,2
         public PlayerState State { get; private set; } = PlayerState.Ready;
 
@@ -21,14 +21,16 @@ namespace KW_Pacman
         public event EventHandler Died;
 
         /* === 내부 필드 === */
-        private readonly PointF spawn;
+        private PointF spawn;
+        private Direction spawnDir;
         private int readyTimer = 2000;      // ms
         private int frameTick;
         private const int FrameMs = 80;
 
-        public Player(PointF startPos)
+        public Player(PointF startPos, Direction startDir)
         {
             Position = spawn = startPos;
+            Facing = spawnDir = startDir;
         } 
 
         public void SetDirection(Direction d)
@@ -64,6 +66,7 @@ namespace KW_Pacman
         public void Respawn()
         {
             Position = spawn;
+            Facing = spawnDir;
             State = PlayerState.Ready;
             readyTimer = 2000;
             FrameIndex = 0;
