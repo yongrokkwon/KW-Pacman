@@ -28,12 +28,44 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Text = "Form1";
+            components = new System.ComponentModel.Container();
+            timer1 = new System.Windows.Forms.Timer(components);
+            pacman_pb = new PictureBox();
+            ((System.ComponentModel.ISupportInitialize)pacman_pb).BeginInit();
+            SuspendLayout();
+            // 
+            // timer1
+            // 
+            timer1.Interval = 16;
+            timer1.Tick += timer1_Tick;
+            // 
+            // pacman_pb
+            // 
+            pacman_pb.Image = Properties.Resources.pacman_right_1;
+            pacman_pb.Location = new Point(0, 2);
+            pacman_pb.Name = "pacman_pb";
+            pacman_pb.Size = new Size(36, 36);
+            pacman_pb.SizeMode = PictureBoxSizeMode.AutoSize;
+            pacman_pb.TabIndex = 0;
+            pacman_pb.TabStop = false;
+            // 
+            // Form1
+            // 
+            AutoScaleDimensions = new SizeF(10F, 25F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(800, 450);
+            Controls.Add(pacman_pb);
+            Name = "Form1";
+            Text = "Form1";
+            KeyDown += Form1_KeyDown;
+            ((System.ComponentModel.ISupportInitialize)pacman_pb).EndInit();
+            ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
+
+        private System.Windows.Forms.Timer timer1;
+        private PictureBox pacman_pb;
     }
 }
