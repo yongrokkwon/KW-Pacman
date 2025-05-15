@@ -16,6 +16,7 @@ namespace KW_Pacman
         public Direction Facing { get; private set; }
         public int FrameIndex { get; private set; } = 0;    // 0,1,2
         public PlayerState State { get; private set; } = PlayerState.Ready;
+        public int lives { get; private set; } = 3;
 
         /* === 이벤트 === */
         public event EventHandler Died;
@@ -76,6 +77,7 @@ namespace KW_Pacman
         {
             if (State is PlayerState.Dead) return;
             State = PlayerState.Dead;
+            lives--;
             Died.Invoke(this, new EventArgs());
         }
     }
