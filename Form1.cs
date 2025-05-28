@@ -1,4 +1,5 @@
 ﻿using static KW_Pacman.Player;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 namespace KW_Pacman
 {
     public partial class Form1 : Form
@@ -45,23 +46,24 @@ namespace KW_Pacman
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
+            player.SetNormal();
             Direction dir;
             switch (e.KeyCode)
             {
-                case Keys.Left: 
-                    dir = Direction.Left; 
+                case Keys.Left:
+                    dir = Direction.Left;
                     break;
-                case Keys.Right: 
-                    dir = Direction.Right; 
+                case Keys.Right:
+                    dir = Direction.Right;
                     break;
-                case Keys.Up: 
-                    dir = Direction.Up; 
+                case Keys.Up:
+                    dir = Direction.Up;
                     break;
-                case Keys.Down: 
-                    dir = Direction.Down; 
+                case Keys.Down:
+                    dir = Direction.Down;
                     break;
-                default: 
-                    dir = Direction.None; 
+                default:
+                    dir = Direction.None;
                     break;
             }
             player.SetDirection(dir);
@@ -95,11 +97,12 @@ namespace KW_Pacman
             };
 
             t.Start();
-           
         }
 
         private void SyncView()
         {
+            pacman_pb.Location = Point.Round(player.Position);
+
             int dirIdx = (int)player.Facing;
             pacman_pb.Image = sprites[dirIdx, player.FrameIndex];
 
@@ -107,9 +110,13 @@ namespace KW_Pacman
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            player.Update(timer1.Interval);      
-            SyncView();                       
+            player.Update(timer1.Interval);
+            SyncView();
         }
 
+        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        {
+            player.SetStopped();
+        }
     }
 }

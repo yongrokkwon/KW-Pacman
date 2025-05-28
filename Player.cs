@@ -9,7 +9,7 @@ namespace KW_Pacman
     internal class Player
     {
         public enum Direction { Left, Right, Up, Down, None }
-        public enum PlayerState { Ready, Normal, Powered, Dead }
+        public enum PlayerState { Ready, Normal, Powered, Dead, Stopped }
 
         /* === 공개 프로퍼티 (Form이 읽음) === */
         public PointF Position { get; private set; }
@@ -27,6 +27,7 @@ namespace KW_Pacman
         private int readyTimer = 2000;      // ms
         private int frameTick;
         private const int FrameMs = 80;
+        private const float SPEED = 2f; // px/frame
 
         public Player(PointF startPos, Direction startDir)
         {
@@ -47,11 +48,11 @@ namespace KW_Pacman
                 case PlayerState.Ready:
                     readyTimer -= dt;
                     if (readyTimer <= 0) 
-                        State = PlayerState.Normal;
+                        State = PlayerState.Stopped;
                     break;
 
                 case PlayerState.Normal:
-                    // move
+                    Move(SPEED);
                     break;
             }
 
@@ -79,6 +80,29 @@ namespace KW_Pacman
             State = PlayerState.Dead;
             lives--;
             Died.Invoke(this, new EventArgs());
+        }
+
+        public void SetNormal()
+        {
+            State = PlayerState.Normal;
+        }
+
+        public void SetStopped()
+        {
+            State = PlayerState.Stopped;
+        }
+
+        private void Move(float dist)
+        {
+            var v = Facing switch
+            {
+                Direction.Left => new PointF(-dist, 0),
+                Direction.Right => new PointF(dist, 0),
+                Direction.Up => new PointF(0, -dist),
+                Direction.Down => new PointF(0, dist),
+                _ => PointF.Empty
+            };
+            Position = new PointF(Position.X + v.X, Position.Y + v.Y);
         }
     }
 }

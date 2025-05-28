@@ -58,6 +58,7 @@
             Name = "Form1";
             Text = "Form1";
             KeyDown += Form1_KeyDown;
+            KeyUp += Form1_KeyUp;
             ((System.ComponentModel.ISupportInitialize)pacman_pb).EndInit();
             ResumeLayout(false);
             PerformLayout();
