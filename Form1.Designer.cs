@@ -28,49 +28,49 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.components = new System.ComponentModel.Container();
-            this.pictureBox1 = new System.Windows.Forms.PictureBox();
-            this.pictureBoxPacman = new System.Windows.Forms.PictureBox();
-            this.timer2 = new System.Windows.Forms.Timer(this.components);
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxPacman)).BeginInit();
-            this.SuspendLayout();
+            components = new System.ComponentModel.Container();
+            pictureBox1 = new PictureBox();
+            pictureBoxPacman = new PictureBox();
+            timer2 = new System.Windows.Forms.Timer(components);
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBoxPacman).BeginInit();
+            SuspendLayout();
             // 
             // pictureBox1
             // 
-            this.pictureBox1.Location = new System.Drawing.Point(200, 200);
-            this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(40, 40);
-            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pictureBox1.TabIndex = 0;
-            this.pictureBox1.TabStop = false;
+            pictureBox1.Location = new Point(200, 200);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new Size(40, 40);
+            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBox1.TabIndex = 0;
+            pictureBox1.TabStop = false;
             // 
             // pictureBoxPacman
             // 
-            this.pictureBoxPacman.BackColor = System.Drawing.Color.Yellow;
-            this.pictureBoxPacman.Location = new System.Drawing.Point(50, 200);
-            this.pictureBoxPacman.Name = "pictureBoxPacman";
-            this.pictureBoxPacman.Size = new System.Drawing.Size(40, 40);
-            this.pictureBoxPacman.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pictureBoxPacman.TabIndex = 1;
-            this.pictureBoxPacman.TabStop = false;
+            pictureBoxPacman.BackColor = Color.Yellow;
+            pictureBoxPacman.Location = new Point(50, 200);
+            pictureBoxPacman.Name = "pictureBoxPacman";
+            pictureBoxPacman.Size = new Size(40, 40);
+            pictureBoxPacman.SizeMode = PictureBoxSizeMode.StretchImage;
+            pictureBoxPacman.TabIndex = 1;
+            pictureBoxPacman.TabStop = false;
             // 
             // timer2
             // 
-            this.timer2.Enabled = true;
-            this.timer2.Tick += new System.EventHandler(this.timer2_Tick);
+            timer2.Enabled = true;
+            timer2.Tick += timer2_Tick;
             // 
             // Form1
             // 
-            this.ClientSize = new System.Drawing.Size(1088, 522);
-            this.Controls.Add(this.pictureBoxPacman);
-            this.Controls.Add(this.pictureBox1);
-            this.KeyPreview = true;
-            this.Name = "Form1";
-            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxPacman)).EndInit();
-            this.ResumeLayout(false);
+            ClientSize = new Size(582, 522);
+            Controls.Add(pictureBoxPacman);
+            Controls.Add(pictureBox1);
+            KeyPreview = true;
+            Name = "Form1";
+            KeyDown += Form1_KeyDown;
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBoxPacman).EndInit();
+            ResumeLayout(false);
 
         }
 
