@@ -44,6 +44,9 @@ namespace KW_Pacman
             isMoving = true;
         }
 
+        private int powerTimer = 0;
+        private const int POWER_DURATION = 8000; // 8초
+
         public void Update(int deltaTime)
         {
             if (State == PlayerState.Ready)
@@ -54,7 +57,17 @@ namespace KW_Pacman
                 return;
             }
 
-            if (State != PlayerState.Normal) return;
+            // 파워 상태 타이머 처리
+            if (State == PlayerState.Powered)
+            {
+                powerTimer -= deltaTime;
+                if (powerTimer <= 0)
+                {
+                    State = PlayerState.Normal;
+                }
+            }
+
+            if (State != PlayerState.Normal && State != PlayerState.Powered) return;
 
             // 다음 방향 체크
             if (nextDirection != Direction.None && CanMoveToNextGrid(nextDirection))
@@ -84,6 +97,17 @@ namespace KW_Pacman
                 FrameIndex = (FrameIndex + 1) % 3;
                 frameTick = 0;
             }
+        }
+
+        public void SetPowered()
+        {
+            State = PlayerState.Powered;
+            powerTimer = POWER_DURATION;
+        }
+
+        public bool IsPowered()
+        {
+            return State == PlayerState.Powered;
         }
 
         private bool CanMoveToNextGrid(Direction dir)
@@ -127,9 +151,11 @@ namespace KW_Pacman
             if (nextGrid.X < 0 || nextGrid.X >= 19 || nextGrid.Y < 0 || nextGrid.Y >= 21)
                 return false;
 
-            // 벽 체크 (터널 입구는 값이 2이므로 통과 가능)
+            // 벽 체크 (터널 입구는 값이 2, 닷은 3, 파워펠렛은 4이므로 모두 통과 가능)
             return Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 0 ||
-                   Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 2;
+                   Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 2 ||
+                   Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 3 ||
+                   Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 4;
         }
 
         private void StartMoveToNextGrid(Direction dir)
@@ -226,6 +252,7 @@ namespace KW_Pacman
         {
             State = PlayerState.Stopped;
         }
+
     }
 }
 

@@ -33,80 +33,83 @@ namespace PACKMAN
         private Player player;
         private bool isGameover = false;
 
-        // 타이머 통합을 위한 카운터
-        private int gameFrameCounter = 0;
+        // 점수 관련 필드
+        private int score = 0;
+        private int totalDots = 0;
+        private int remainingDots = 0;
+        private Label scoreLabel;
 
         // 실제 이미지와 정확히 일치하는 미로 데이터
         private void InitializeSimpleMazeGrid()
         {
             // 미로 크기: 19x21 (가로 19칸, 세로 21칸)
-            // 0 = 빈 공간, 1 = 벽, 2 = 터널 입구
+            // 0 = 빈 공간, 1 = 벽, 2 = 터널 입구, 3 = 닷(점수), 4 = 파워펠렛
             int[,] simpleMaze = new int[21, 19] {
                 // Row 0 (y=0) - 상단 외벽
                 {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        
-                // Row 1 (y=24) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+
+                // Row 1 (y=24) - 닷이 있는 복도
+                {1,4,3,3,3,3,3,3,3,0,3,3,3,3,3,3,3,4,1},
+
                 // Row 2 (y=48) - 상단 내부 벽들
-                {1,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,0,1},
-        
-                // Row 3 (y=72) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+                {1,3,1,1,1,3,1,1,1,1,1,1,1,3,1,1,1,3,1},
+
+                // Row 3 (y=72) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
                 // Row 4 (y=96) - 2줄 벽들 (가로)
-                {1,0,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1,0,1},
-        
+                {1,3,1,3,1,1,3,1,3,1,3,1,3,1,1,3,1,3,1},
+
                 // Row 5 (y=120) - 2줄 벽들 (세로 연장)
-                {1,0,1,0,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1},
-        
-                // Row 6 (y=144) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+                {1,3,1,3,3,3,3,1,3,1,3,1,3,3,3,3,1,3,1},
+
+                // Row 6 (y=144) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
                 // Row 7 (y=168) - 3줄 가로 벽들
-                {1,0,0,0,1,1,0,1,1,1,1,1,0,1,1,0,0,0,1},
-        
-                // Row 8 (y=192) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+                {1,3,3,3,1,1,3,1,1,1,1,1,3,1,1,3,3,3,1},
+
+                // Row 8 (y=192) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
                 // Row 9 (y=216) - 유령집 상단 + 좌우 박스 상단
-                {1,0,1,1,1,0,0,1,1,0,1,1,0,0,1,1,1,0,1},
-        
+                {1,3,1,1,1,3,3,1,1,0,1,1,3,3,1,1,1,3,1},
+
                 // Row 10 (y=240) - 터널 + 유령집 + 좌우 박스 중간
-                {2,0,1,1,1,0,0,1,0,0,0,1,0,0,1,1,1,0,2},
-        
+                {2,3,1,1,1,3,3,1,0,0,0,1,3,3,1,1,1,3,2},
+
                 // Row 11 (y=264) - 유령집 하단 + 좌우 박스 하단
-                {1,0,1,1,1,0,0,1,1,1,1,1,0,0,1,1,1,0,1},
-        
-                // Row 12 (y=288) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
-                // Row 13 (y=312) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+                {1,3,1,1,1,3,3,1,1,1,1,1,3,3,1,1,1,3,1},
+
+                // Row 12 (y=288) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
+                // Row 13 (y=312) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
                 // Row 14 (y=336) - 중하 가로 벽들
-                {1,0,0,0,1,1,0,1,1,1,1,1,0,1,1,0,0,0,1},
-        
-                // Row 15 (y=360) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+                {1,3,3,3,1,1,3,1,1,1,1,1,3,1,1,3,3,3,1},
+
+                // Row 15 (y=360) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
                 // Row 16 (y=384) - 하단 벽들 (가로)
-                {1,0,1,0,1,1,0,1,0,1,0,1,0,1,1,0,1,0,1},
-        
+                {1,3,1,3,1,1,3,1,3,1,3,1,3,1,1,3,1,3,1},
+
                 // Row 17 (y=408) - 하단 벽들 (세로 연장)
-                {1,0,1,0,0,0,0,1,0,1,0,1,0,0,0,0,1,0,1},
-        
-                // Row 18 (y=432) - 빈 복도
-                {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        
+                {1,3,1,3,3,3,3,1,3,1,3,1,3,3,3,3,1,3,1},
+
+                // Row 18 (y=432) - 닷이 있는 복도
+                {1,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,1},
+
                 // Row 19 (y=456) - 최하단 내부 벽들
-                {1,0,1,1,1,0,1,1,1,1,1,1,1,0,1,1,1,0,1},
-        
+                {1,4,1,1,1,3,1,1,1,1,1,1,1,3,1,1,1,4,1},
+
                 // Row 20 (y=480) - 하단 외벽
                 {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
             };
 
-            // MazeGrid에 복사 - 이제 21x19로 정확히 복사
+            // MazeGrid에 복사
             for (int row = 0; row < MAZE_ROWS; row++)
             {
                 for (int col = 0; col < MAZE_COLS; col++)
@@ -114,15 +117,6 @@ namespace PACKMAN
                     MazeGrid[row, col] = simpleMaze[row, col];
                 }
             }
-
-            // 미로 데이터 검증
-            Console.WriteLine("=== 미로 데이터 검증 ===");
-            Console.WriteLine($"미로 크기: {MAZE_ROWS} x {MAZE_COLS}");
-
-            // 몇 개 샘플 위치 확인
-            Console.WriteLine($"(1,1): {MazeGrid[1, 1]} (통로여야 함)");
-            Console.WriteLine($"(0,0): {MazeGrid[0, 0]} (벽이어야 함)");
-            Console.WriteLine($"(10,0): {MazeGrid[10, 0]} (터널 - 통로여야 함)");
         }
 
         public static Form1 Instance;
@@ -132,8 +126,8 @@ namespace PACKMAN
             Instance = this; // 생성자에 추가
 
             InitializeComponent();
-            InitializeGame();
             InitializeSimpleMazeGrid();
+            InitializeGame();
         }
 
         private void InitializeGame()
@@ -153,10 +147,33 @@ namespace PACKMAN
             // 스프라이트 로드
             LoadSprites();
 
-            // Player 초기화 - 확실히 통로인 위치로 설정
-            spawnPos = new PointF(1 * CELL_SIZE, 1 * CELL_SIZE);
-            player = new Player(spawnPos, spawnDir);
-            player.Died += OnPlayerDied;
+            // Player 초기화 - 확실히 빈 통로인 위치로 설정
+            spawnPos = new PointF(9 * CELL_SIZE, 1 * CELL_SIZE); // (9,1)은 빈 공간(0)
+
+            try
+            {
+                player = new Player(spawnPos, spawnDir);
+                player.Died += OnPlayerDied;
+                Console.WriteLine("Player initialized successfully");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Player initialization failed: {ex.Message}");
+                return;
+            }
+
+            // 점수 라벨 생성
+            scoreLabel = new Label();
+            scoreLabel.Text = "Score: 0";
+            scoreLabel.ForeColor = Color.Yellow;
+            scoreLabel.BackColor = Color.Black;
+            scoreLabel.Font = new Font("Arial", 12, FontStyle.Bold);
+            scoreLabel.Location = new Point(10, 10);
+            scoreLabel.Size = new Size(120, 25);
+            this.Controls.Add(scoreLabel);
+
+            // 총 닷 개수 계산
+            CountTotalDots();
 
             // 타이머 설정
             timer1.Interval = 50;
@@ -164,7 +181,7 @@ namespace PACKMAN
             timer1.Start();
 
             // 초기 위치 설정 - 확실히 통로인 곳으로
-            ghostPos = new Point(9, 12); // 중앙 통로 (행12, 열9)
+            ghostPos = new Point(9, 9); // (9, 9)는 유령집 근처의 빈 공간
             pacmanPos = PixelToMaze(Point.Round(player.Position));
 
             // 위치 디버그 출력
@@ -199,6 +216,22 @@ namespace PACKMAN
             }
         }
 
+        private void CountTotalDots()
+        {
+            totalDots = 0;
+            for (int row = 0; row < MAZE_ROWS; row++)
+            {
+                for (int col = 0; col < MAZE_COLS; col++)
+                {
+                    if (MazeGrid[row, col] == 3 || MazeGrid[row, col] == 4)
+                    {
+                        totalDots++;
+                    }
+                }
+            }
+            remainingDots = totalDots;
+        }
+
         private void LoadSprites()
         {
             sprites = new Bitmap[4, 3];
@@ -230,27 +263,85 @@ namespace PACKMAN
         {
             if (isGameover) return;
 
-            gameFrameCounter++;
             player.Update(timer1.Interval);
             UpdatePacmanView();
 
-            // 유령을 매 프레임마다 업데이트
-            UpdateGhost();
+            // 닷/파워펠렛 충돌 검사 추가
+            CheckDotCollection();
 
+            UpdateGhost();
             CheckCollisions();
+
+            // 화면 새로고침
+            this.Invalidate();
+        }
+
+        private void CheckDotCollection()
+        {
+            Point currentPos = PixelToMaze(Point.Round(player.Position));
+
+            if (currentPos.X >= 0 && currentPos.X < MAZE_COLS &&
+                currentPos.Y >= 0 && currentPos.Y < MAZE_ROWS)
+            {
+                int cellValue = MazeGrid[currentPos.Y, currentPos.X];
+
+                if (cellValue == 3) // 닷
+                {
+                    MazeGrid[currentPos.Y, currentPos.X] = 0; // 먹음
+                    score += 10;
+                    remainingDots--;
+                    UpdateScore();
+                }
+                else if (cellValue == 4) // 파워펠렛
+                {
+                    MazeGrid[currentPos.Y, currentPos.X] = 0; // 먹음
+                    score += 50;
+                    remainingDots--;
+                    player.SetPowered(); // 플레이어를 파워 상태로
+
+                    // 유령을 무서워하는 상태로 변경
+                    currentGhostState = GhostState.Frightened;
+                    stateTimer = 0;
+                    ghostPath.Clear();
+
+                    UpdateScore();
+                }
+
+                // 모든 닷을 먹으면 게임 클리어
+                if (remainingDots <= 0)
+                {
+                    timer1.Stop();
+                    MessageBox.Show($"Stage Clear! Final Score: {score}");
+                    isGameover = true;
+                }
+            }
+        }
+
+        private void UpdateScore()
+        {
+            if (scoreLabel != null)
+            {
+                scoreLabel.Text = $"Score: {score}";
+            }
+        }
+
+        private bool IsValidPosition(Point pos)
+        {
+            return pos.X >= 0 && pos.X < MAZE_COLS &&
+                   pos.Y >= 0 && pos.Y < MAZE_ROWS &&
+                   (MazeGrid[pos.Y, pos.X] == 0 || MazeGrid[pos.Y, pos.X] == 3 || MazeGrid[pos.Y, pos.X] == 4);
         }
 
         private void UpdatePacmanView()
         {
-            if (pictureBoxPacman != null)
-            {
-                pictureBoxPacman.Location = Point.Round(player.Position);
+            if (player == null || pictureBoxPacman == null) return;
 
-                int dirIdx = (int)player.Facing;
-                if (dirIdx >= 0 && dirIdx < 4)
-                {
-                    pictureBoxPacman.Image = sprites[dirIdx, player.FrameIndex];
-                }
+            pictureBoxPacman.Location = Point.Round(player.Position);
+
+            int dirIdx = (int)player.Facing;
+            if (dirIdx >= 0 && dirIdx < 4)
+            {
+                pictureBoxPacman.Image = sprites[dirIdx, player.FrameIndex];
             }
 
             pacmanPos = PixelToMaze(Point.Round(player.Position));
@@ -395,10 +486,10 @@ namespace PACKMAN
                     if (IsValidPosition(pacmanPos))
                         return pacmanPos;
                     else
-                        return new Point(9, 15);
+                        return new Point(9, 9); // 안전한 위치로 변경
 
                 case GhostState.Scatter:
-                    return new Point(1, 1); // 왼쪽 상단
+                    return new Point(1, 3); // 왼쪽 상단의 통로
 
                 case GhostState.Frightened:
                     Random rand = new Random();
@@ -406,24 +497,17 @@ namespace PACKMAN
                     {
                         int x = rand.Next(1, MAZE_COLS - 1);
                         int y = rand.Next(1, MAZE_ROWS - 1);
-                        if (MazeGrid[y, x] == 0)
+                        if (MazeGrid[y, x] != 1) // 벽이 아니면 OK
                             return new Point(x, y);
                     }
-                    return new Point(9, 15);
+                    return new Point(9, 9);
 
                 case GhostState.Respawning:
-                    return new Point(9, 12);
+                    return new Point(9, 9);
 
                 default:
-                    return new Point(9, 15);
+                    return new Point(9, 9);
             }
-        }
-
-        private bool IsValidPosition(Point pos)
-        {
-            return pos.X >= 0 && pos.X < MAZE_COLS &&
-                   pos.Y >= 0 && pos.Y < MAZE_ROWS &&
-                   MazeGrid[pos.Y, pos.X] == 0;
         }
 
         private void UpdateGhostSprite()
@@ -460,11 +544,14 @@ namespace PACKMAN
 
                 if (ghostBounds.IntersectsWith(pacmanBounds))
                 {
-                    if (currentGhostState == GhostState.Frightened)
+                    if (currentGhostState == GhostState.Frightened && player.IsPowered())
                     {
+                        // 유령을 먹음
                         currentGhostState = GhostState.Eaten;
                         stateTimer = 0;
                         ghostPath.Clear();
+                        score += 200; // 유령을 먹으면 보너스 점수
+                        UpdateScore();
                     }
                     else if (currentGhostState != GhostState.Eaten &&
                              currentGhostState != GhostState.Respawning)
@@ -587,7 +674,8 @@ namespace PACKMAN
 
                 if (nx >= 0 && nx < MAZE_COLS && ny >= 0 && ny < MAZE_ROWS)
                 {
-                    if (MazeGrid[ny, nx] == 0)
+                    // 벽(1)이 아닌 모든 셀을 통과 가능으로 처리
+                    if (MazeGrid[ny, nx] != 1)
                     {
                         neighbors.Add(new Point(nx, ny));
                     }
@@ -630,6 +718,13 @@ namespace PACKMAN
                 return;
             }
 
+            // player가 null인지 확인
+            if (player == null)
+            {
+                Console.WriteLine("Player is null!");
+                return;
+            }
+
             player.SetNormal();
             Direction dir;
             switch (e.KeyCode)
@@ -651,6 +746,37 @@ namespace PACKMAN
                     break;
             }
             player.SetNextDirection(dir);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            DrawMaze(e.Graphics);
+        }
+
+        private void DrawMaze(Graphics g)
+        {
+            for (int row = 0; row < MAZE_ROWS; row++)
+            {
+                for (int col = 0; col < MAZE_COLS; col++)
+                {
+                    int x = col * CELL_SIZE;
+                    int y = row * CELL_SIZE;
+
+                    switch (MazeGrid[row, col])
+                    {
+                        case 1: // 벽
+                            g.FillRectangle(Brushes.Blue, x, y, CELL_SIZE, CELL_SIZE);
+                            break;
+                        case 3: // 닷
+                            g.FillEllipse(Brushes.Yellow, x + 10, y + 10, 4, 4);
+                            break;
+                        case 4: // 파워펠렛
+                            g.FillEllipse(Brushes.Yellow, x + 6, y + 6, 12, 12);
+                            break;
+                    }
+                }
+            }
         }
     }
 }
