@@ -31,16 +31,17 @@
             components = new System.ComponentModel.Container();
             pictureBox1 = new PictureBox();
             pictureBoxPacman = new PictureBox();
-            timer2 = new System.Windows.Forms.Timer(components);
+            timer1 = new System.Windows.Forms.Timer(components);
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)pictureBoxPacman).BeginInit();
             SuspendLayout();
             // 
             // pictureBox1
             // 
-            pictureBox1.Location = new Point(200, 200);
+            pictureBox1.Location = new Point(140, 120);
+            pictureBox1.Margin = new Padding(2, 2, 2, 2);
             pictureBox1.Name = "pictureBox1";
-            pictureBox1.Size = new Size(40, 40);
+            pictureBox1.Size = new Size(28, 24);
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
@@ -48,38 +49,41 @@
             // pictureBoxPacman
             // 
             pictureBoxPacman.BackColor = Color.Yellow;
-            pictureBoxPacman.Location = new Point(50, 200);
+            pictureBoxPacman.Location = new Point(35, 120);
+            pictureBoxPacman.Margin = new Padding(2, 2, 2, 2);
             pictureBoxPacman.Name = "pictureBoxPacman";
-            pictureBoxPacman.Size = new Size(40, 40);
+            pictureBoxPacman.Size = new Size(28, 24);
             pictureBoxPacman.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBoxPacman.TabIndex = 1;
             pictureBoxPacman.TabStop = false;
             // 
-            // timer2
+            // timer1
             // 
-            timer2.Enabled = true;
-            timer2.Tick += timer2_Tick;
+            timer1.Interval = 16;
             // 
             // Form1
             // 
-            ClientSize = new Size(582, 522);
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(560, 270);
             Controls.Add(pictureBoxPacman);
             Controls.Add(pictureBox1);
             KeyPreview = true;
+            Margin = new Padding(2, 2, 2, 2);
             Name = "Form1";
+            Text = "Form1";
             KeyDown += Form1_KeyDown;
+            KeyUp += Form1_KeyUp;
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ((System.ComponentModel.ISupportInitialize)pictureBoxPacman).EndInit();
             ResumeLayout(false);
-
         }
 
         #endregion
 
-        private System.Windows.Forms.Timer timer1;
         private System.Windows.Forms.PictureBox pictureBox1;
-        private System.Windows.Forms.PictureBox pictureBoxPacman;
-        private System.Windows.Forms.Timer timer2;
+        private System.Windows.Forms.PictureBox pictureBoxPacman;        
+        private System.Windows.Forms.Timer timer1;
     }
 }
 

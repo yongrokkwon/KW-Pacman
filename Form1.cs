@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
+﻿using KW_Pacman;
+using static KW_Pacman.Player;
 
 namespace PACKMAN
 {
@@ -9,11 +8,10 @@ namespace PACKMAN
         // 가상의 미로 크기(추후 실제 맵과 동일하게 맞출 것)
         private const int MAZE_ROWS = 21;
         private const int MAZE_COLS = 19;
+        private const int CELL_SIZE = 24; // 타일 한 칸 크기
 
         // 0 = 빈칸, 1 = 벽 (예시 미로, 실제 미로로 대체)
-        // 미로가 완성되면 여기 데이터만 바꾸면 됨
         private int[,] MazeGrid = new int[MAZE_ROWS, MAZE_COLS];
-
 
         // 유령, 팩맨의 위치를 "미로 좌표"로 관리 (그리드 단위)
         private Point ghostPos = new Point(1, 1);   // 예: (1,1)에서 시작
@@ -26,56 +24,179 @@ namespace PACKMAN
 
         private GhostState currentGhostState = GhostState.Scatter;
         private int stateTimer = 0;
+        private int ghostMoveTimer = 0; // 유령 이동 타이밍 제어
+
+        private Bitmap[,] sprites; // [Direction, frame]
+        private PointF spawnPos = new PointF(240, 240); // 팩맨 시작 위치
+        private Direction spawnDir = Direction.Right;
+
+        private Player player;
+        private bool isGameover = false;
+
+        // 타이머 통합을 위한 카운터
+        private int gameFrameCounter = 0;
 
         public Form1()
         {
             InitializeComponent();
+            InitializeGame();
+        }
 
-            this.KeyPreview = true;
+        private void InitializeGame()
+        {
+            // 화면 설정
+            this.DoubleBuffered = true; // 화면 깜박임 방지
+            this.KeyPreview = true; // 키 입력 선처리
             this.KeyDown += Form1_KeyDown;
+            this.KeyUp += Form1_KeyUp;
 
-            timer2.Interval = 100;
-            timer2.Start();
+            // 스프라이트 로드
+            LoadSprites();
 
-            pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
-            pictureBoxPacman.BackColor = System.Drawing.Color.Yellow; // 임시 팩맨 색
-            pictureBoxPacman.SizeMode = PictureBoxSizeMode.StretchImage;
+            // Player 초기화
+            player = new Player(spawnPos, spawnDir);
+            player.Died += OnPlayerDied;
 
-            // 팩맨/유령 위치 초기화, 미로 위에서 좌표만 초기화
+            // 타이머 설정 (하나로 통합)
+            timer1.Interval = 50; // 20 FPS
+            timer1.Tick += GameLoop_Tick;
+            timer1.Start();
+
+            // 초기 위치 설정
             ghostPos = new Point(1, 1);
-            pacmanPos = new Point(10, 10);
+            pacmanPos = PixelToMaze(Point.Round(player.Position));
+
+            // PictureBox 설정
+            if (pictureBox1 != null)
+            {
+                pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
+                pictureBox1.Location = MazeToPixel(ghostPos);
+            }
+        }
+
+        private void LoadSprites()
+        {
+            sprites = new Bitmap[4, 3];
+
+            sprites[(int)Direction.Left, 0] = KW_Pacman.Properties.Resources.pacman_left_0;
+            sprites[(int)Direction.Left, 1] = KW_Pacman.Properties.Resources.pacman_left_1;
+            sprites[(int)Direction.Left, 2] = KW_Pacman.Properties.Resources.pacman_left_2;
+
+            sprites[(int)Direction.Right, 0] = KW_Pacman.Properties.Resources.pacman_right_0;
+            sprites[(int)Direction.Right, 1] = KW_Pacman.Properties.Resources.pacman_right_1;
+            sprites[(int)Direction.Right, 2] = KW_Pacman.Properties.Resources.pacman_right_2;
+
+            sprites[(int)Direction.Up, 0] = KW_Pacman.Properties.Resources.pacman_up_0;
+            sprites[(int)Direction.Up, 1] = KW_Pacman.Properties.Resources.pacman_up_1;
+            sprites[(int)Direction.Up, 2] = KW_Pacman.Properties.Resources.pacman_up_2;
+
+            sprites[(int)Direction.Down, 0] = KW_Pacman.Properties.Resources.pacman_down_0;
+            sprites[(int)Direction.Down, 1] = KW_Pacman.Properties.Resources.pacman_down_1;
+            sprites[(int)Direction.Down, 2] = KW_Pacman.Properties.Resources.pacman_down_2;
         }
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Space)
-            {
-                currentGhostState = GhostState.Frightened;
-                stateTimer = 0;
-            }
+            if (isGameover) return;
 
-            // 팩맨 방향키 이동
-            int step = 10;
-            if (e.KeyCode == Keys.Left)
-                pictureBoxPacman.Left -= step;
-            else if (e.KeyCode == Keys.Right)
-                pictureBoxPacman.Left += step;
-            else if (e.KeyCode == Keys.Up)
-                pictureBoxPacman.Top -= step;
-            else if (e.KeyCode == Keys.Down)
-                pictureBoxPacman.Top += step;
+            player.SetNormal();
+            Direction dir;
+            switch (e.KeyCode)
+            {
+                case Keys.Left:
+                    dir = Direction.Left;
+                    break;
+                case Keys.Right:
+                    dir = Direction.Right;
+                    break;
+                case Keys.Up:
+                    dir = Direction.Up;
+                    break;
+                case Keys.Down:
+                    dir = Direction.Down;
+                    break;
+                case Keys.Space: // 디버그용 - 유령을 Frightened 상태로 변경
+                    currentGhostState = GhostState.Frightened;
+                    stateTimer = 0;
+                    return;
+                default:
+                    dir = Direction.None;
+                    break;
+            }
+            player.SetDirection(dir);
         }
 
-        private void timer2_Tick(object sender, EventArgs e)
+        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (!isGameover)
+                player.SetStopped();
+        }
+
+        // 통합된 게임 루프
+        private void GameLoop_Tick(object sender, EventArgs e)
+        {
+            if (isGameover) return;
+
+            gameFrameCounter++;
+
+            // 팩맨 업데이트 (매 프레임)
+            player.Update(timer1.Interval);
+            UpdatePacmanView();
+
+            // 유령 업데이트 (2프레임마다 = 10 FPS)
+            if (gameFrameCounter % 2 == 0)
+            {
+                UpdateGhost();
+            }
+
+            // 충돌 검사
+            CheckCollisions();
+        }
+
+        private void UpdatePacmanView()
+        {
+            // 팩맨 위치 업데이트
+            if (pictureBoxPacman != null)
+            {
+                pictureBoxPacman.Location = Point.Round(player.Position);
+                
+                // 스프라이트 업데이트
+                int dirIdx = (int)player.Facing;
+                if (dirIdx >= 0 && dirIdx < 4)
+                {
+                    pictureBoxPacman.Image = sprites[dirIdx, player.FrameIndex];
+                }
+            }
+
+            // 팩맨의 미로 좌표 업데이트
+            pacmanPos = PixelToMaze(Point.Round(player.Position));
+        }
+
+        private void UpdateGhost()
         {
             stateTimer++;
+            ghostMoveTimer++;
 
+            // 유령 상태 변경
+            UpdateGhostState();
+
+            // 유령 이동 (4프레임마다 = 5 FPS)
+            if (ghostMoveTimer >= 4)
+            {
+                MoveGhost();
+                ghostMoveTimer = 0;
+            }
+
+            // 유령 스프라이트 업데이트
+            UpdateGhostSprite();
+        }
+
+        private void UpdateGhostState()
+        {
             switch (currentGhostState)
             {
                 case GhostState.Scatter:
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
-                    //pictureBox1.Left -= 5;
-                    if (stateTimer >= 30)
+                    if (stateTimer >= 60) // 3초 (60프레임)
                     {
                         currentGhostState = GhostState.Chase;
                         stateTimer = 0;
@@ -83,9 +204,7 @@ namespace PACKMAN
                     break;
 
                 case GhostState.Chase:
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
-                    //pictureBox1.Left += 5;
-                    if (stateTimer >= 30)
+                    if (stateTimer >= 60) // 3초
                     {
                         currentGhostState = GhostState.Frightened;
                         stateTimer = 0;
@@ -93,9 +212,7 @@ namespace PACKMAN
                     break;
 
                 case GhostState.Frightened:
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.ScaredGhost;
-                    //pictureBox1.Left -= 2;
-                    if (stateTimer >= 20)
+                    if (stateTimer >= 40) // 2초
                     {
                         currentGhostState = GhostState.Scatter;
                         stateTimer = 0;
@@ -103,72 +220,146 @@ namespace PACKMAN
                     break;
 
                 case GhostState.Eaten:
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.GhostEye;
-                    pictureBox1.Visible = false;
                     currentGhostState = GhostState.Respawning;
                     stateTimer = 0;
+                    // 시작 위치로 이동
+                    ghostPos = new Point(1, 1);
                     break;
 
                 case GhostState.Respawning:
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.GhostEye;
-                    if (!pictureBox1.Visible)
-                        pictureBox1.Visible = true;
-
-                    //if (pictureBox1.Left > 100)
-                    //    pictureBox1.Left -= 5;
-                    //else if (pictureBox1.Left < 100)
-                    //    pictureBox1.Left += 5;
-                    //else
-                    //{
-                    //    currentGhostState = GhostState.Scatter;
-                    //    stateTimer = 0;
-                    //}
-                    currentGhostState = GhostState.Scatter;
-                    stateTimer = 0;
+                    if (stateTimer >= 20) // 1초
+                    {
+                        currentGhostState = GhostState.Scatter;
+                        stateTimer = 0;
+                    }
                     break;
             }
+        }
 
-            // 팩맨과 충돌 감지
-            if (pictureBox1.Bounds.IntersectsWith(pictureBoxPacman.Bounds))
-            {
-                if (currentGhostState == GhostState.Frightened)
-                {
-                    currentGhostState = GhostState.Eaten;
-                    stateTimer = 0;
-                }
-                else if (currentGhostState != GhostState.Eaten && currentGhostState != GhostState.Respawning)
-                {
-                    timer2.Stop();
-                    MessageBox.Show("팩맨이 잡혔습니다!");
-                }
-            }
-
-            // 팩맨 위치(미로 그리드 상)를 주기적으로 업데이트
-            pacmanPos = PixelToMaze(pictureBoxPacman.Location);
-
-            // 1. 유령이 팩맨을 향해 길을 찾음 (필요할 때만, ex: 목표 변경시)
+        private void MoveGhost()
+        {
+            // 경로가 없거나 목표가 변경되었으면 새로 계산
             if (ghostPath.Count == 0)
             {
-                ghostPath = FindPathAStar(ghostPos, pacmanPos);
+                Point targetPos = GetGhostTarget();
+                ghostPath = FindPathAStar(ghostPos, targetPos);
             }
 
-            // 2. 유령이 한 칸 이동 (경로가 있으면)
+            // 유령 이동
             if (ghostPath.Count > 0)
             {
                 ghostPos = ghostPath.Dequeue();
             }
 
-            // 3. 유령 실제 픽셀 위치로 변환해서 pictureBox1 위치 업데이트
-            pictureBox1.Location = MazeToPixel(ghostPos);
+            // 유령 위치 업데이트
+            if (pictureBox1 != null)
+            {
+                pictureBox1.Location = MazeToPixel(ghostPos);
+            }
+        }
+
+        private Point GetGhostTarget()
+        {
+            switch (currentGhostState)
+            {
+                case GhostState.Chase:
+                    return pacmanPos; // 팩맨을 쫓기
+                case GhostState.Scatter:
+                    return new Point(0, 0); // 왼쪽 상단으로
+                case GhostState.Frightened:
+                    // 랜덤하게 이동
+                    Random rand = new Random();
+                    return new Point(rand.Next(MAZE_COLS), rand.Next(MAZE_ROWS));
+                case GhostState.Respawning:
+                    return new Point(1, 1); // 시작 위치로
+                default:
+                    return pacmanPos;
+            }
+        }
+
+        private void UpdateGhostSprite()
+        {
+            if (pictureBox1 == null) return;
+
+            switch (currentGhostState)
+            {
+                case GhostState.Scatter:
+                case GhostState.Chase:
+                    pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
+                    pictureBox1.Visible = true;
+                    break;
+
+                case GhostState.Frightened:
+                    pictureBox1.Image = KW_Pacman.Properties.Resource.ScaredGhost;
+                    pictureBox1.Visible = true;
+                    break;
+
+                case GhostState.Eaten:
+                case GhostState.Respawning:
+                    pictureBox1.Image = KW_Pacman.Properties.Resource.GhostEye;
+                    pictureBox1.Visible = true;
+                    break;
+            }
+        }
+
+        private void CheckCollisions()
+        {
+            // 팩맨과 유령 충돌 검사
+            if (pictureBox1 != null && pictureBoxPacman != null)
+            {
+                Rectangle ghostBounds = pictureBox1.Bounds;
+                Rectangle pacmanBounds = pictureBoxPacman.Bounds;
+
+                if (ghostBounds.IntersectsWith(pacmanBounds))
+                {
+                    if (currentGhostState == GhostState.Frightened)
+                    {
+                        // 유령을 먹음
+                        currentGhostState = GhostState.Eaten;
+                        stateTimer = 0;
+                        ghostPath.Clear(); // 경로 초기화
+                    }
+                    else if (currentGhostState != GhostState.Eaten && 
+                             currentGhostState != GhostState.Respawning)
+                    {
+                        // 팩맨이 죽음
+                        player.Die();
+                    }
+                }
+            }
+        }
+
+        private void OnPlayerDied(object sender, EventArgs e)
+        {
+            if (isGameover) return;
+
+            timer1.Stop();
+            var deathTimer = new System.Windows.Forms.Timer { Interval = 1000 }; // 1초 정지
+            deathTimer.Tick += (s2, _) =>
+            {
+                deathTimer.Stop();
+                deathTimer.Dispose();
+
+                if (player.lives > 0)
+                {
+                    player.Respawn();
+                    timer1.Start();
+                }
+                else
+                {
+                    isGameover = true;
+                    MessageBox.Show("Game Over");
+                }
+            };
+
+            deathTimer.Start();
         }
 
         // --- A* 알고리즘 구현 ---
-        // (나중에 MazeGrid/벽/좌표만 실제 맵으로 연결하면 바로 사용 가능)
         private Queue<Point> FindPathAStar(Point start, Point goal)
         {
             var path = new Queue<Point>();
 
-            // [A* 기본 구조]
             var openSet = new SortedSet<(int f, Point pos)>(
                 Comparer<(int f, Point pos)>.Create(
                     (a, b) => a.f == b.f ? a.pos.GetHashCode().CompareTo(b.pos.GetHashCode()) : a.f.CompareTo(b.f)
@@ -195,7 +386,7 @@ namespace PACKMAN
                         totalPath.Add(current);
                     }
                     totalPath.Reverse();
-                    // 시작 위치는 빼고 반환(현재 위치->다음 이동)
+                    // 시작 위치는 빼고 반환
                     for (int i = 1; i < totalPath.Count; i++)
                         path.Enqueue(totalPath[i]);
                     return path;
@@ -218,38 +409,39 @@ namespace PACKMAN
             return path; // 경로 없으면 빈 큐 반환
         }
 
-        // --- 휴리스틱(맨해튼 거리) ---
         private int Heuristic(Point a, Point b)
         {
             return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
         }
 
-        // --- 인접 칸 반환 (벽은 제외) ---
         private List<Point> GetNeighbors(Point p)
         {
-            var dirs = new Point[] { new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0) }; // 상하좌우
+            var dirs = new Point[] { 
+                new Point(0, 1), new Point(1, 0), 
+                new Point(0, -1), new Point(-1, 0) 
+            }; // 상하좌우
+            
             var neighbors = new List<Point>();
             foreach (var d in dirs)
             {
                 int nx = p.X + d.X, ny = p.Y + d.Y;
-                if (nx >= 0 && nx < MAZE_COLS && ny >= 0 && ny < MAZE_ROWS && MazeGrid[ny, nx] == 0)
+                if (nx >= 0 && nx < MAZE_COLS && ny >= 0 && ny < MAZE_ROWS && 
+                    MazeGrid[ny, nx] == 0)
+                {
                     neighbors.Add(new Point(nx, ny));
+                }
             }
             return neighbors;
         }
 
-        // --- 미로 좌표를 픽셀 위치로 변환하는 함수(미로 완성시 구현) ---
         private Point MazeToPixel(Point mazePos)
         {
-            int cellSize = 24; // 예시 (타일 한 칸 크기)
-            return new Point(mazePos.X * cellSize, mazePos.Y * cellSize);
+            return new Point(mazePos.X * CELL_SIZE, mazePos.Y * CELL_SIZE);
         }
 
-        // --- 픽셀 위치를 미로 좌표로 변환하는 함수(팩맨 이동시 사용) ---
         private Point PixelToMaze(Point pixelPos)
         {
-            int cellSize = 24;
-            return new Point(pixelPos.X / cellSize, pixelPos.Y / cellSize);
+            return new Point(pixelPos.X / CELL_SIZE, pixelPos.Y / CELL_SIZE);
         }
     }
 }
