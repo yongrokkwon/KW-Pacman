@@ -108,19 +108,28 @@ namespace KW_Pacman
                     break;
             }
 
-            // 터널 처리
+            // 터널 처리 (Row 10에서 좌우 이동 시)
             if (gridPosition.Y == 10)
             {
-                if (nextGrid.X < 0) nextGrid.X = 18;
-                if (nextGrid.X >= 19) nextGrid.X = 0;
+                if (nextGrid.X < 0)
+                {
+                    // 왼쪽 터널로 나가면 오른쪽 터널로 이동 가능
+                    return true;
+                }
+                if (nextGrid.X >= 19)
+                {
+                    // 오른쪽 터널로 나가면 왼쪽 터널로 이동 가능
+                    return true;
+                }
             }
 
             // 경계 체크
             if (nextGrid.X < 0 || nextGrid.X >= 19 || nextGrid.Y < 0 || nextGrid.Y >= 21)
                 return false;
 
-            // 벽 체크
-            return Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 0;
+            // 벽 체크 (터널 입구는 값이 2이므로 통과 가능)
+            return Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 0 ||
+                   Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 2;
         }
 
         private void StartMoveToNextGrid(Direction dir)
@@ -143,11 +152,21 @@ namespace KW_Pacman
                     break;
             }
 
-            // 터널 처리
+            // 터널 처리 (Row 10에서 좌우 이동 시)
             if (gridPosition.Y == 10)
             {
-                if (nextGrid.X < 0) nextGrid.X = 18;
-                if (nextGrid.X >= 19) nextGrid.X = 0;
+                if (nextGrid.X < 0)
+                {
+                    // 왼쪽으로 나가면 오른쪽 터널로 순간이동
+                    nextGrid.X = 18;
+                    Position = new PointF(18 * 24, 10 * 24); // 즉시 위치 변경
+                }
+                else if (nextGrid.X >= 19)
+                {
+                    // 오른쪽으로 나가면 왼쪽 터널로 순간이동
+                    nextGrid.X = 0;
+                    Position = new PointF(0 * 24, 10 * 24); // 즉시 위치 변경
+                }
             }
 
             gridPosition = nextGrid;
