@@ -22,12 +22,15 @@ namespace KW_Pacman
         public event EventHandler Died;
 
         /* === 내부 필드 === */
+        private int powerTimer;                
+        private const int PowerMs = 6000;      // 파워 지속 시간
+        //private const float PowerSpeed = 3f;   
         private PointF spawn;
         private Direction spawnDir;
         private int readyTimer = 2000;      // ms
         private int frameTick;
         private const int FrameMs = 80;
-        private const float SPEED = 2f; // px/frame
+        private const float SPEED = 3f; // px/frame
 
         public Player(PointF startPos, Direction startDir)
         {
@@ -53,6 +56,13 @@ namespace KW_Pacman
 
                 case PlayerState.Normal:
                     Move(SPEED);
+                    break;
+                
+                case PlayerState.Powered:
+                    Move(SPEED);
+                    powerTimer -= dt;
+                    if (powerTimer <= 0) 
+                        State = PlayerState.Normal;
                     break;
             }
 
@@ -92,7 +102,13 @@ namespace KW_Pacman
             State = PlayerState.Stopped;
 }
 
-        private void Move(float dist)
+        public void ActivatePower()
+        {
+            State = PlayerState.Powered;
+            powerTimer = PowerMs;
+        }
+
+    private void Move(float dist)
         {
             var v = Facing switch
             {
