@@ -1,4 +1,4 @@
-﻿namespace PACKMAN
+﻿namespace KW_Pacman
 {
     partial class Form1
     {

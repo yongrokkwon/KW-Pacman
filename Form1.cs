@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 
-namespace PACKMAN
+namespace KW_Pacman
 {
     public partial class Form1 : Form
     {
