@@ -39,7 +39,7 @@
             // pictureBox1
             // 
             pictureBox1.Location = new Point(140, 120);
-            pictureBox1.Margin = new Padding(2, 2, 2, 2);
+            pictureBox1.Margin = new Padding(2);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new Size(28, 24);
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -49,8 +49,8 @@
             // pictureBoxPacman
             // 
             pictureBoxPacman.BackColor = Color.Yellow;
-            pictureBoxPacman.Location = new Point(35, 120);
-            pictureBoxPacman.Margin = new Padding(2, 2, 2, 2);
+            pictureBoxPacman.Location = new Point(48, 149);
+            pictureBoxPacman.Margin = new Padding(2);
             pictureBoxPacman.Name = "pictureBoxPacman";
             pictureBoxPacman.Size = new Size(28, 24);
             pictureBoxPacman.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -65,11 +65,12 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(560, 270);
+            BackgroundImage = KW_Pacman.Properties.Resource.pacman_maze;
+            ClientSize = new Size(440, 465);
             Controls.Add(pictureBoxPacman);
             Controls.Add(pictureBox1);
             KeyPreview = true;
-            Margin = new Padding(2, 2, 2, 2);
+            Margin = new Padding(2);
             Name = "Form1";
             Text = "Form1";
             KeyDown += Form1_KeyDown;

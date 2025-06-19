@@ -103,6 +103,16 @@ namespace KW_Pacman.Properties {
         /// <summary>
         ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static System.Drawing.Bitmap pacman_maze {
+            get {
+                object obj = ResourceManager.GetObject("pacman_maze", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Drawing.Bitmap 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static System.Drawing.Bitmap PinkGhost {
             get {
                 object obj = ResourceManager.GetObject("PinkGhost", resourceCulture);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using PACKMAN;
 
 namespace KW_Pacman
 {
@@ -17,6 +18,8 @@ namespace KW_Pacman
         public int FrameIndex { get; private set; } = 0;    // 0,1,2
         public PlayerState State { get; private set; } = PlayerState.Ready;
         public int lives { get; private set; } = 3;
+        private Direction nextDirection = Direction.None;
+        private bool isMoving = true;
 
         /* === 이벤트 === */
         public event EventHandler Died;
@@ -27,43 +30,156 @@ namespace KW_Pacman
         private int readyTimer = 2000;      // ms
         private int frameTick;
         private const int FrameMs = 80;
-        private const float SPEED = 2f; // px/frame
+        private const float SPEED = 6f; // px/frame
+        private Point gridPosition;  // 격자 위치
+        private PointF targetPosition;  // 목표 픽셀 위치
+        private bool isMovingToTarget = false;
 
         public Player(PointF startPos, Direction startDir)
         {
             Position = spawn = startPos;
             Facing = spawnDir = startDir;
+            gridPosition = new Point((int)startPos.X / 24, (int)startPos.Y / 24);
+            targetPosition = startPos;
+            isMoving = true;
         }
 
-        public void SetDirection(Direction d)
+        public void Update(int deltaTime)
         {
-            if (d != Direction.None)
-                Facing = d;
-        }
-
-        public void Update(int dt)
-        {
-            switch (State)
+            if (State == PlayerState.Ready)
             {
-                case PlayerState.Ready:
-                    readyTimer -= dt;
-                    if (readyTimer <= 0)
-                        State = PlayerState.Stopped;
-                    break;
-
-                case PlayerState.Normal:
-                    Move(SPEED);
-                    break;
+                readyTimer -= deltaTime;
+                if (readyTimer <= 0)
+                    State = PlayerState.Normal;
+                return;
             }
 
-            // 애니메이션 프레임
-            frameTick += dt;
+            if (State != PlayerState.Normal) return;
+
+            // 다음 방향 체크
+            if (nextDirection != Direction.None && CanMoveToNextGrid(nextDirection))
+            {
+                Facing = nextDirection;
+                nextDirection = Direction.None;
+            }
+
+            // 현재 목표 지점으로 이동 중이면 계속 이동
+            if (isMovingToTarget)
+            {
+                MoveTowardsTarget();
+            }
+            else
+            {
+                // 새로운 격자로 이동 시도
+                if (CanMoveToNextGrid(Facing))
+                {
+                    StartMoveToNextGrid(Facing);
+                }
+            }
+
+            // 프레임 애니메이션
+            frameTick += deltaTime;
             if (frameTick >= FrameMs)
             {
-                frameTick = 0;
                 FrameIndex = (FrameIndex + 1) % 3;
+                frameTick = 0;
             }
         }
+
+        private bool CanMoveToNextGrid(Direction dir)
+        {
+            if (dir == Direction.None) return false;
+
+            Point nextGrid = gridPosition;
+
+            switch (dir)
+            {
+                case Direction.Left:
+                    nextGrid.X -= 1;
+                    break;
+                case Direction.Right:
+                    nextGrid.X += 1;
+                    break;
+                case Direction.Up:
+                    nextGrid.Y -= 1;
+                    break;
+                case Direction.Down:
+                    nextGrid.Y += 1;
+                    break;
+            }
+
+            // 터널 처리
+            if (gridPosition.Y == 10)
+            {
+                if (nextGrid.X < 0) nextGrid.X = 18;
+                if (nextGrid.X >= 19) nextGrid.X = 0;
+            }
+
+            // 경계 체크
+            if (nextGrid.X < 0 || nextGrid.X >= 19 || nextGrid.Y < 0 || nextGrid.Y >= 21)
+                return false;
+
+            // 벽 체크
+            return Form1.Instance.MazeGrid[nextGrid.Y, nextGrid.X] == 0;
+        }
+
+        private void StartMoveToNextGrid(Direction dir)
+        {
+            Point nextGrid = gridPosition;
+
+            switch (dir)
+            {
+                case Direction.Left:
+                    nextGrid.X -= 1;
+                    break;
+                case Direction.Right:
+                    nextGrid.X += 1;
+                    break;
+                case Direction.Up:
+                    nextGrid.Y -= 1;
+                    break;
+                case Direction.Down:
+                    nextGrid.Y += 1;
+                    break;
+            }
+
+            // 터널 처리
+            if (gridPosition.Y == 10)
+            {
+                if (nextGrid.X < 0) nextGrid.X = 18;
+                if (nextGrid.X >= 19) nextGrid.X = 0;
+            }
+
+            gridPosition = nextGrid;
+            targetPosition = new PointF(nextGrid.X * 24, nextGrid.Y * 24);
+            isMovingToTarget = true;
+        }
+
+        private void MoveTowardsTarget()
+        {
+            float deltaX = targetPosition.X - Position.X;
+            float deltaY = targetPosition.Y - Position.Y;
+            float distance = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            if (distance <= SPEED)
+            {
+                // 목표 도달
+                Position = targetPosition;
+                isMovingToTarget = false;
+            }
+            else
+            {
+                // 목표 방향으로 이동
+                float moveX = (deltaX / distance) * SPEED;
+                float moveY = (deltaY / distance) * SPEED;
+                Position = new PointF(Position.X + moveX, Position.Y + moveY);
+            }
+        }
+
+        public void SetNextDirection(Direction dir)
+        {
+            nextDirection = dir;
+        }        
 
         public void Respawn()
         {
@@ -85,24 +201,11 @@ namespace KW_Pacman
         public void SetNormal()
         {
             State = PlayerState.Normal;
-    }
+        }
 
         public void SetStopped()
         {
             State = PlayerState.Stopped;
-}
-
-        private void Move(float dist)
-        {
-            var v = Facing switch
-            {
-                Direction.Left => new PointF(-dist, 0),
-                Direction.Right => new PointF(dist, 0),
-                Direction.Up => new PointF(0, -dist),
-                Direction.Down => new PointF(0, dist),
-                _ => PointF.Empty
-            };
-            Position = new PointF(Position.X + v.X, Position.Y + v.Y);
         }
     }
 }
