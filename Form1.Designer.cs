@@ -48,7 +48,7 @@
             // 
             // pictureBoxPacman
             // 
-            pictureBoxPacman.BackColor = Color.Yellow;
+            pictureBoxPacman.BackColor = SystemColors.Control;
             pictureBoxPacman.Location = new Point(35, 120);
             pictureBoxPacman.Margin = new Padding(2, 2, 2, 2);
             pictureBoxPacman.Name = "pictureBoxPacman";
