@@ -178,6 +178,6 @@ namespace KW_Pacman.Properties {
                 object obj = ResourceManager.GetObject("pacman_up_2", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
-        }
+        }        
     }
 }
