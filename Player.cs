@@ -17,7 +17,6 @@ namespace KW_Pacman
         public Direction Facing { get; private set; }
         public int FrameIndex { get; private set; } = 0;    // 0,1,2
         public PlayerState State { get; private set; } = PlayerState.Ready;
-        public int lives { get; private set; } = 3;
         private Direction nextDirection = Direction.None;
         private bool isMoving = true;
 
@@ -224,8 +223,12 @@ namespace KW_Pacman
         public void SetNextDirection(Direction dir)
         {
             nextDirection = dir;
-        }        
+        }
 
+        // 목숨을 항상 3으로 유지
+        public int lives { get; set; } = 3; // private set을 set으로 변경
+
+        // 기존 Respawn 메서드를 다음과 같이 수정:
         public void Respawn()
         {
             Position = spawn;
@@ -233,13 +236,45 @@ namespace KW_Pacman
             State = PlayerState.Ready;
             readyTimer = 2000;
             FrameIndex = 0;
+
+            // 격자 위치와 이동 관련 변수들 초기화
+            gridPosition = new Point((int)spawn.X / 24, (int)spawn.Y / 24);
+            targetPosition = spawn;
+            isMovingToTarget = false;
+            nextDirection = Direction.None;
+
+            // 파워 상태 초기화
+            powerTimer = 0;
+            if (State == PlayerState.Powered)
+                State = PlayerState.Ready;
+        }
+
+        // 새로운 리셋 메서드 추가
+        public void ResetToPosition(PointF newPos, Direction newDir)
+        {
+            Position = spawn = newPos;
+            Facing = spawnDir = newDir;
+            State = PlayerState.Ready;
+            readyTimer = 2000;
+            FrameIndex = 0;
+
+            // 격자 위치와 이동 관련 변수들 초기화
+            gridPosition = new Point((int)newPos.X / 24, (int)newPos.Y / 24);
+            targetPosition = newPos;
+            isMovingToTarget = false;
+            nextDirection = Direction.None;
+
+            // 파워 상태 초기화
+            powerTimer = 0;
+
+            // lives = 3; // 이 줄 제거 - 목숨은 유지
         }
 
         public void Die()
         {
             if (State is PlayerState.Dead) return;
             State = PlayerState.Dead;
-            lives--;
+            lives--; // 목숨 감소
             Died.Invoke(this, new EventArgs());
         }
 
