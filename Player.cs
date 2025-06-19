@@ -33,11 +33,11 @@ namespace KW_Pacman
         {
             Position = spawn = startPos;
             Facing = spawnDir = startDir;
-        } 
+        }
 
         public void SetDirection(Direction d)
         {
-            if(d != Direction.None)
+            if (d != Direction.None)
                 Facing = d;
         }
 
@@ -47,7 +47,7 @@ namespace KW_Pacman
             {
                 case PlayerState.Ready:
                     readyTimer -= dt;
-                    if (readyTimer <= 0) 
+                    if (readyTimer <= 0)
                         State = PlayerState.Stopped;
                     break;
 
@@ -85,12 +85,12 @@ namespace KW_Pacman
         public void SetNormal()
         {
             State = PlayerState.Normal;
-        }
+    }
 
         public void SetStopped()
         {
             State = PlayerState.Stopped;
-        }
+}
 
         private void Move(float dist)
         {
