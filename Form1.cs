@@ -1,6 +1,8 @@
 ﻿using KW_Pacman;
 using static KW_Pacman.Player;
 
+enum GhostState { Scatter, Chase, Frightened, Eaten, Respawning, ExitingHome }
+
 namespace PACKMAN
 {
     public partial class Form1 : Form
@@ -24,8 +26,6 @@ namespace PACKMAN
         // 이동경로 (A*로 계산)
         private Queue<Point> ghostPath = new Queue<Point>();
 
-        enum GhostState { Scatter, Chase, Frightened, Eaten, Respawning }
-
         private GhostState currentGhostState = GhostState.Scatter;
         private int stateTimer = 0;
         private int ghostMoveTimer = 0;
@@ -43,6 +43,8 @@ namespace PACKMAN
         private int remainingDots = 0;
         private Label scoreLabel;
         private Label livesLabel; // 목숨 표시 라벨 추가
+        // 유령의 시야 범위 (맨하탄 거리)
+        private const int GHOST_SIGHT_RANGE = 5;
 
         // 실제 이미지와 정확히 일치하는 미로 데이터
         private void InitializeSimpleMazeGrid()
@@ -198,9 +200,13 @@ namespace PACKMAN
             timer1.Tick += GameLoop_Tick;
             timer1.Start();
 
-            // 초기 위치 설정 - 확실히 통로인 곳으로
-            ghostPos = new Point(9, 9); // 유령집 근처
+            // 기존 코드에서 이 부분을 찾아서 수정
+            // 초기 위치 설정 - 유령집에서 시작
+            ghostPos = GHOST_HOME; // new Point(9, 9); 대신 GHOST_HOME 사용
             pacmanPos = PixelToMaze(Point.Round(player.Position));
+
+            // 유령 상태를 집에서 나오는 상태로 설정
+            currentGhostState = GhostState.ExitingHome;
 
             // 위치 디버그 출력
             Console.WriteLine($"Ghost starting position: ({ghostPos.X}, {ghostPos.Y})");
@@ -394,21 +400,43 @@ namespace PACKMAN
         {
             switch (currentGhostState)
             {
-                case GhostState.Scatter:
-                    if (stateTimer >= 100)
-                    {
-                        currentGhostState = GhostState.Chase;
-                        stateTimer = 0;
-                        Console.WriteLine("Ghost state: Chase");
-                    }
-                    break;
-
-                case GhostState.Chase:
-                    if (stateTimer >= 150)
+                case GhostState.ExitingHome:
+                    // 유령집에서 나오는 중
+                    if (ghostPos == GHOST_SPAWN) // 유령집 입구에 도착하면
                     {
                         currentGhostState = GhostState.Scatter;
                         stateTimer = 0;
-                        Console.WriteLine("Ghost state: Scatter");
+                        Console.WriteLine("Ghost exited home, starting Scatter mode");
+                    }
+                    break;
+
+                case GhostState.Scatter:
+                    // 팩맨이 가까이 있으면 Chase 모드로 전환
+                    if (IsValidPosition(pacmanPos) && GetManhattanDistance(ghostPos, pacmanPos) <= GHOST_SIGHT_RANGE)
+                    {
+                        currentGhostState = GhostState.Chase;
+                        stateTimer = 0;
+                        ghostPath.Clear(); // 기존 경로 삭제
+                        Console.WriteLine("Ghost spotted Pacman! Switching to Chase mode");
+                    }
+                    // 색상 변경을 위한 자동 상태 전환 제거 - Scatter 상태 유지
+                    break;
+
+                case GhostState.Chase:
+                    // 팩맨이 시야에서 벗어나거나 시간이 지나면 Scatter로 복귀
+                    if (!IsValidPosition(pacmanPos) || GetManhattanDistance(ghostPos, pacmanPos) > GHOST_SIGHT_RANGE)
+                    {
+                        currentGhostState = GhostState.Scatter;
+                        stateTimer = 0;
+                        ghostPath.Clear();
+                        Console.WriteLine("Lost sight of Pacman, returning to Scatter");
+                    }
+                    else if (stateTimer >= 200) // Chase 시간 제한 (좀 더 길게)
+                    {
+                        currentGhostState = GhostState.Scatter;
+                        stateTimer = 0;
+                        ghostPath.Clear();
+                        Console.WriteLine("Chase timeout, returning to Scatter");
                     }
                     break;
 
@@ -423,7 +451,6 @@ namespace PACKMAN
 
                 case GhostState.Eaten:
                     // Eaten 상태에서는 즉시 유령집으로 향함
-                    // 이동은 MoveGhost에서 처리
                     break;
 
                 case GhostState.Respawning:
@@ -555,25 +582,30 @@ namespace PACKMAN
         {
             switch (currentGhostState)
             {
+                case GhostState.ExitingHome:
+                    // 유령집에서 입구로 이동
+                    return GHOST_SPAWN;
+
                 case GhostState.Chase:
-                    if (IsValidPosition(pacmanPos))
+                    // 팩맨이 시야 범위 내에 있을 때만 추적
+                    if (IsValidPosition(pacmanPos) && GetManhattanDistance(ghostPos, pacmanPos) <= GHOST_SIGHT_RANGE)
+                    {
+                        Console.WriteLine($"Ghost spotted Pacman! Distance: {GetManhattanDistance(ghostPos, pacmanPos)}");
                         return pacmanPos;
+                    }
                     else
-                        return new Point(9, 9); // 안전한 위치로 변경
+                    {
+                        // 시야 범위 밖이면 랜덤하게 이동
+                        return GetRandomTarget();
+                    }
 
                 case GhostState.Scatter:
-                    return new Point(1, 3); // 왼쪽 상단의 통로
+                    // 기본적으로 랜덤하게 움직임
+                    return GetRandomTarget();
 
                 case GhostState.Frightened:
-                    Random rand = new Random();
-                    for (int attempts = 0; attempts < 20; attempts++)
-                    {
-                        int x = rand.Next(1, MAZE_COLS - 1);
-                        int y = rand.Next(1, MAZE_ROWS - 1);
-                        if (MazeGrid[y, x] != 1) // 벽이 아니면 OK
-                            return new Point(x, y);
-                    }
-                    return new Point(9, 9);
+                    // 무서워할 때는 팩맨에서 멀어지는 방향으로
+                    return GetFleeTarget();
 
                 case GhostState.Respawning:
                     return new Point(9, 9);
@@ -583,19 +615,99 @@ namespace PACKMAN
             }
         }
 
+        // 맨하탄 거리 계산
+        private int GetManhattanDistance(Point a, Point b)
+        {
+            return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+        }
+
+        // 랜덤한 목표 지점 선택
+        private Point GetRandomTarget()
+        {
+            Random rand = new Random();
+
+            // 현재 위치에서 이동 가능한 방향들 중 랜덤 선택
+            var neighbors = GetNeighbors(ghostPos);
+
+            if (neighbors.Count > 0)
+            {
+                // 가끔은 현재 방향을 유지하도록 (더 자연스러운 움직임)
+                if (ghostPath.Count > 0 && rand.Next(100) < 70) // 70% 확률로 현재 경로 유지
+                {
+                    return ghostPath.Peek();
+                }
+
+                // 랜덤하게 방향 선택
+                Point randomDirection = neighbors[rand.Next(neighbors.Count)];
+
+                // 선택된 방향으로 2-4칸 정도 이동할 목표점 설정
+                int steps = rand.Next(2, 5);
+                Point target = randomDirection;
+
+                for (int i = 1; i < steps; i++)
+                {
+                    Point nextStep = new Point(
+                        target.X + (randomDirection.X - ghostPos.X),
+                        target.Y + (randomDirection.Y - ghostPos.Y)
+                    );
+
+                    if (IsValidPositionForGhost(nextStep))
+                        target = nextStep;
+                    else
+                        break;
+                }
+
+                return target;
+            }
+
+            // 이동할 곳이 없으면 안전한 위치로
+            return new Point(9, 9);
+        }
+
+        // 팩맨에서 도망가는 목표 지점 (Frightened 상태용)
+        private Point GetFleeTarget()
+        {
+            Random rand = new Random();
+            Point bestTarget = ghostPos;
+            int maxDistance = 0;
+
+            // 여러 후보 중에서 팩맨에서 가장 먼 곳 선택
+            for (int attempts = 0; attempts < 10; attempts++)
+            {
+                int x = rand.Next(1, MAZE_COLS - 1);
+                int y = rand.Next(1, MAZE_ROWS - 1);
+                Point candidate = new Point(x, y);
+
+                if (MazeGrid[y, x] != 1) // 벽이 아니면
+                {
+                    int distance = GetManhattanDistance(candidate, pacmanPos);
+                    if (distance > maxDistance)
+                    {
+                        maxDistance = distance;
+                        bestTarget = candidate;
+                    }
+                }
+            }
+
+            return bestTarget;
+        }
+
         private void UpdateGhostSprite()
         {
             if (pictureBox1 == null) return;
 
             switch (currentGhostState)
             {
+                case GhostState.ExitingHome:
                 case GhostState.Scatter:
                 case GhostState.Chase:
+                    // 항상 빨간 유령으로 고정
                     pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
                     pictureBox1.Visible = true;
                     break;
 
                 case GhostState.Frightened:
+                    // 무서워할 때만 파란색
                     pictureBox1.Image = KW_Pacman.Properties.Resource.ScaredGhost;
                     pictureBox1.Visible = true;
                     break;
@@ -606,7 +718,7 @@ namespace PACKMAN
                     break;
 
                 case GhostState.Respawning:
-                    // 깜빡이는 효과를 위해 타이머에 따라 표시/숨김
+                    // 깜빡이는 효과
                     bool blink = (stateTimer / 10) % 2 == 0;
                     pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
                     pictureBox1.Visible = blink;
@@ -741,10 +853,10 @@ namespace PACKMAN
             spawnPos = new PointF(9 * CELL_SIZE, 1 * CELL_SIZE);
             player.ResetToPosition(spawnPos, spawnDir);
 
-            // 유령 초기 위치로 리셋
-            ghostPos = new Point(9, 9);
+            // 유령을 유령집으로 리셋하고 나오는 상태로 설정
+            ghostPos = GHOST_HOME; // 유령집에서 시작
             ghostPath.Clear();
-            currentGhostState = GhostState.Scatter;
+            currentGhostState = GhostState.ExitingHome; // 집에서 나오는 상태
             stateTimer = 0;
             ghostMoveTimer = 0;
 
@@ -762,7 +874,7 @@ namespace PACKMAN
             // 팩맨 위치 업데이트
             pacmanPos = PixelToMaze(Point.Round(spawnPos));
 
-            Console.WriteLine("Positions reset - Pacman and Ghost back to start");
+            Console.WriteLine("Positions reset - Pacman and Ghost back to start, Ghost exiting home");
         }
 
         // A* 알고리즘
