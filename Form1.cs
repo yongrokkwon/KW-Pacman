@@ -19,17 +19,31 @@ namespace PACKMAN
         // 0 = 빈칸, 1 = 벽
         public int[,] MazeGrid = new int[MAZE_ROWS, MAZE_COLS];
 
-        // 유령, 팩맨의 위치를 "미로 좌표"로 관리 (그리드 단위)
-        private Point ghostPos = new Point(1, 1);
+        //private Point ghostPos = new Point(1, 1);        
+        //private Queue<Point> ghostPath = new Queue<Point>();
+        //private GhostState currentGhostState = GhostState.Scatter;
+        //private int stateTimer = 0;
+        //private int ghostMoveTimer = 0;
+
+        private const int GHOST_COUNT = 3;
+        private Point[] ghostPositions = new Point[GHOST_COUNT];
+        private Queue<Point>[] ghostPaths = new Queue<Point>[GHOST_COUNT];
+        private GhostState[] ghostStates = new GhostState[GHOST_COUNT];
+        private int[] stateTimers = new int[GHOST_COUNT];
+        private int[] ghostMoveTimers = new int[GHOST_COUNT];
+        private PictureBox[] ghostPictureBoxes = new PictureBox[GHOST_COUNT];
+
+        // 각 유령의 시작 위치
+        private static readonly Point[] GHOST_START_POSITIONS = new Point[] {
+            new Point(9, 10),   // 첫 번째 유령 - 유령집 중앙
+            new Point(8, 10),   // 두 번째 유령 - 유령집 왼쪽
+            new Point(10, 10)   // 세 번째 유령 - 유령집 오른쪽
+        };
+
+        // 각 유령의 색상/이미지
+        private Image[] ghostImages = new Image[GHOST_COUNT];
+
         private Point pacmanPos = new Point(10, 10);
-
-        // 이동경로 (A*로 계산)
-        private Queue<Point> ghostPath = new Queue<Point>();
-
-        private GhostState currentGhostState = GhostState.Scatter;
-        private int stateTimer = 0;
-        private int ghostMoveTimer = 0;
-
         private Bitmap[,] sprites; // [Direction, frame]
         private PointF spawnPos = new PointF(240, 240);
         private Direction spawnDir = Direction.Right;
@@ -200,36 +214,47 @@ namespace PACKMAN
             timer1.Tick += GameLoop_Tick;
             timer1.Start();
 
-            // 기존 코드에서 이 부분을 찾아서 수정
-            // 초기 위치 설정 - 유령집에서 시작
-            ghostPos = GHOST_HOME; // new Point(9, 9); 대신 GHOST_HOME 사용
-            pacmanPos = PixelToMaze(Point.Round(player.Position));
-
-            // 유령 상태를 집에서 나오는 상태로 설정
-            currentGhostState = GhostState.ExitingHome;
-
-            // 위치 디버그 출력
-            Console.WriteLine($"Ghost starting position: ({ghostPos.X}, {ghostPos.Y})");
-            Console.WriteLine($"Pacman starting position: ({pacmanPos.X}, {pacmanPos.Y})");
-
-            // 배열 경계 체크 후 출력
-            if (ghostPos.Y >= 0 && ghostPos.Y < MAZE_ROWS && ghostPos.X >= 0 && ghostPos.X < MAZE_COLS)
-                Console.WriteLine($"Ghost maze value: {MazeGrid[ghostPos.Y, ghostPos.X]}");
-            else
-                Console.WriteLine("Ghost position out of bounds!");
-
-            if (pacmanPos.Y >= 0 && pacmanPos.Y < MAZE_ROWS && pacmanPos.X >= 0 && pacmanPos.X < MAZE_COLS)
-                Console.WriteLine($"Pacman maze value: {MazeGrid[pacmanPos.Y, pacmanPos.X]}");
-            else
-                Console.WriteLine("Pacman position out of bounds!");
-
-            // PictureBox 설정
-            if (pictureBox1 != null)
+            // 유령 이미지 배열 초기화
+            try
             {
-                pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
-                pictureBox1.Location = MazeToPixel(ghostPos);
-                pictureBox1.BackColor = Color.Transparent;
-                pictureBox1.Size = new Size(24, 24);
+                ghostImages[0] = KW_Pacman.Properties.Resource.RedGhost;
+                ghostImages[1] = KW_Pacman.Properties.Resource.BlueGhost; // BlueGhost가 없으면 RedGhost 사용
+                ghostImages[2] = KW_Pacman.Properties.Resource.PinkGhost; // PinkGhost가 없으면 RedGhost 사용
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ghost image loading failed: {ex.Message}");
+                // 모든 유령을 빨간 유령으로 설정
+                for (int i = 0; i < GHOST_COUNT; i++)
+                {
+                    ghostImages[i] = KW_Pacman.Properties.Resource.RedGhost;
+                }
+            }
+
+            // 이미지가 없다면 모두 빨간 유령으로
+            for (int i = 0; i < GHOST_COUNT; i++)
+            {
+                if (ghostImages[i] == null)
+                    ghostImages[i] = KW_Pacman.Properties.Resource.RedGhost;
+            }
+
+            // 유령들 초기화
+            for (int i = 0; i < GHOST_COUNT; i++)
+            {
+                ghostPositions[i] = GHOST_START_POSITIONS[i];
+                ghostPaths[i] = new Queue<Point>();
+                ghostStates[i] = GhostState.ExitingHome;
+                stateTimers[i] = i * 20; // 각 유령이 다른 시점에 시작하도록 지연
+                ghostMoveTimers[i] = 0;
+
+                // PictureBox 생성 및 설정
+                ghostPictureBoxes[i] = new PictureBox();
+                ghostPictureBoxes[i].Image = ghostImages[i];
+                ghostPictureBoxes[i].Location = MazeToPixel(ghostPositions[i]);
+                //ghostPictureBoxes[i].BackColor = Color.Transparent;
+                ghostPictureBoxes[i].Size = new Size(24, 24);
+                ghostPictureBoxes[i].SizeMode = PictureBoxSizeMode.StretchImage; // 이 줄 추가!
+                this.Controls.Add(ghostPictureBoxes[i]);
             }
 
             if (pictureBoxPacman != null)
@@ -238,6 +263,8 @@ namespace PACKMAN
                 pictureBoxPacman.BackColor = Color.Transparent;
                 pictureBoxPacman.Size = new Size(24, 24);
             }
+
+            pacmanPos = PixelToMaze(Point.Round(player.Position));
         }
 
         private void CountTotalDots()
@@ -318,15 +345,21 @@ namespace PACKMAN
                 }
                 else if (cellValue == 4) // 파워펠렛
                 {
-                    MazeGrid[currentPos.Y, currentPos.X] = 0; // 먹음
+                    MazeGrid[currentPos.Y, currentPos.X] = 0;
                     score += 50;
                     remainingDots--;
-                    player.SetPowered(); // 플레이어를 파워 상태로
+                    player.SetPowered();
 
-                    // 유령을 무서워하는 상태로 변경
-                    currentGhostState = GhostState.Frightened;
-                    stateTimer = 0;
-                    ghostPath.Clear();
+                    // 모든 유령을 무서워하는 상태로 변경
+                    for (int i = 0; i < GHOST_COUNT; i++)
+                    {
+                        if (ghostStates[i] != GhostState.Eaten && ghostStates[i] != GhostState.Respawning)
+                        {
+                            ghostStates[i] = GhostState.Frightened;
+                            stateTimers[i] = 0;
+                            ghostPaths[i].Clear();
+                        }
+                    }
 
                     UpdateScore();
                 }
@@ -381,277 +414,251 @@ namespace PACKMAN
 
         private void UpdateGhost()
         {
-            stateTimer++;
-            ghostMoveTimer++;
-
-            UpdateGhostState();
-
-            // 유령 이동을 더 자주 하도록 수정 (3프레임마다)
-            if (ghostMoveTimer >= 3)
+            // 모든 유령에 대해 개별적으로 업데이트
+            for (int ghostIndex = 0; ghostIndex < GHOST_COUNT; ghostIndex++)
             {
-                MoveGhost();
-                ghostMoveTimer = 0;
+                UpdateSingleGhost(ghostIndex);
             }
-
-            UpdateGhostSprite();
         }
 
-        private void UpdateGhostState()
+        private void UpdateSingleGhost(int ghostIndex)
         {
-            switch (currentGhostState)
+            stateTimers[ghostIndex]++;
+            ghostMoveTimers[ghostIndex]++;
+
+            UpdateGhostState(ghostIndex);
+
+            // 각 유령마다 다른 속도 (약간의 변화를 위해)
+            int moveInterval = 4 + (ghostIndex % 2); // 6, 7, 6 프레임마다
+            if (ghostMoveTimers[ghostIndex] >= moveInterval)
+            {
+                MoveGhost(ghostIndex);
+                ghostMoveTimers[ghostIndex] = 0;
+            }
+
+            UpdateGhostSprite(ghostIndex);
+        }
+
+        private void UpdateGhostState(int ghostIndex)
+        {
+            switch (ghostStates[ghostIndex])
             {
                 case GhostState.ExitingHome:
-                    // 유령집에서 나오는 중
-                    if (ghostPos == GHOST_SPAWN) // 유령집 입구에 도착하면
+                    if (ghostPositions[ghostIndex] == GHOST_SPAWN)
                     {
-                        currentGhostState = GhostState.Scatter;
-                        stateTimer = 0;
-                        Console.WriteLine("Ghost exited home, starting Scatter mode");
+                        ghostStates[ghostIndex] = GhostState.Scatter;
+                        stateTimers[ghostIndex] = 0;
+                        Console.WriteLine($"Ghost {ghostIndex} exited home, starting Scatter mode");
                     }
                     break;
 
                 case GhostState.Scatter:
-                    // 팩맨이 가까이 있으면 Chase 모드로 전환
-                    if (IsValidPosition(pacmanPos) && GetManhattanDistance(ghostPos, pacmanPos) <= GHOST_SIGHT_RANGE)
+                    if (IsValidPosition(pacmanPos) && GetManhattanDistance(ghostPositions[ghostIndex], pacmanPos) <= GHOST_SIGHT_RANGE)
                     {
-                        currentGhostState = GhostState.Chase;
-                        stateTimer = 0;
-                        ghostPath.Clear(); // 기존 경로 삭제
-                        Console.WriteLine("Ghost spotted Pacman! Switching to Chase mode");
+                        ghostStates[ghostIndex] = GhostState.Chase;
+                        stateTimers[ghostIndex] = 0;
+                        ghostPaths[ghostIndex].Clear();
+                        Console.WriteLine($"Ghost {ghostIndex} spotted Pacman! Switching to Chase mode");
                     }
-                    // 색상 변경을 위한 자동 상태 전환 제거 - Scatter 상태 유지
                     break;
 
                 case GhostState.Chase:
-                    // 팩맨이 시야에서 벗어나거나 시간이 지나면 Scatter로 복귀
-                    if (!IsValidPosition(pacmanPos) || GetManhattanDistance(ghostPos, pacmanPos) > GHOST_SIGHT_RANGE)
+                    if (!IsValidPosition(pacmanPos) || GetManhattanDistance(ghostPositions[ghostIndex], pacmanPos) > GHOST_SIGHT_RANGE)
                     {
-                        currentGhostState = GhostState.Scatter;
-                        stateTimer = 0;
-                        ghostPath.Clear();
-                        Console.WriteLine("Lost sight of Pacman, returning to Scatter");
+                        ghostStates[ghostIndex] = GhostState.Scatter;
+                        stateTimers[ghostIndex] = 0;
+                        ghostPaths[ghostIndex].Clear();
+                        Console.WriteLine($"Ghost {ghostIndex} lost sight of Pacman, returning to Scatter");
                     }
-                    else if (stateTimer >= 200) // Chase 시간 제한 (좀 더 길게)
+                    else if (stateTimers[ghostIndex] >= 200)
                     {
-                        currentGhostState = GhostState.Scatter;
-                        stateTimer = 0;
-                        ghostPath.Clear();
-                        Console.WriteLine("Chase timeout, returning to Scatter");
+                        ghostStates[ghostIndex] = GhostState.Scatter;
+                        stateTimers[ghostIndex] = 0;
+                        ghostPaths[ghostIndex].Clear();
+                        Console.WriteLine($"Ghost {ghostIndex} chase timeout, returning to Scatter");
                     }
                     break;
 
                 case GhostState.Frightened:
-                    if (stateTimer >= 160) // 8초 (160 * 50ms)
+                    if (stateTimers[ghostIndex] >= 160)
                     {
-                        currentGhostState = GhostState.Scatter;
-                        stateTimer = 0;
-                        Console.WriteLine("Ghost state: Scatter (from Frightened)");
+                        ghostStates[ghostIndex] = GhostState.Scatter;
+                        stateTimers[ghostIndex] = 0;
+                        Console.WriteLine($"Ghost {ghostIndex} state: Scatter (from Frightened)");
                     }
                     break;
 
                 case GhostState.Eaten:
-                    // Eaten 상태에서는 즉시 유령집으로 향함
                     break;
 
                 case GhostState.Respawning:
-                    if (stateTimer >= 60) // 3초 후 정상 상태로
+                    if (stateTimers[ghostIndex] >= 20) // 1초 후 바로 나오기
                     {
-                        currentGhostState = GhostState.Scatter;
-                        stateTimer = 0;
-                        Console.WriteLine("Ghost respawned and ready");
+                        ghostStates[ghostIndex] = GhostState.ExitingHome;
+                        stateTimers[ghostIndex] = 0;
+                        Console.WriteLine($"Ghost {ghostIndex} respawned and exiting home");
                     }
                     break;
             }
         }
 
-        private void MoveGhost()
+        private void MoveGhost(int ghostIndex)
         {
-            // 현재 위치가 유효한지 먼저 체크
-            if (!IsValidPositionForGhost(ghostPos))
+            if (!IsValidPositionForGhost(ghostPositions[ghostIndex], ghostIndex))
             {
-                Console.WriteLine($"ERROR: Ghost in wall at ({ghostPos.X}, {ghostPos.Y})!");
-                ghostPos = GHOST_SPAWN; // 유령집 입구로 이동
-                ghostPath.Clear();
+                Console.WriteLine($"ERROR: Ghost {ghostIndex} in wall at ({ghostPositions[ghostIndex].X}, {ghostPositions[ghostIndex].Y})!");
+                ghostPositions[ghostIndex] = GHOST_SPAWN;
+                ghostPaths[ghostIndex].Clear();
                 return;
             }
 
-            // Eaten 상태일 때는 유령집으로 직접 이동
-            if (currentGhostState == GhostState.Eaten)
+            if (ghostStates[ghostIndex] == GhostState.Eaten)
             {
-                // 유령집에 도착했는지 확인
-                if (ghostPos == GHOST_HOME)
+                if (ghostPositions[ghostIndex] == GHOST_START_POSITIONS[ghostIndex])
                 {
-                    currentGhostState = GhostState.Respawning;
-                    stateTimer = 0;
-                    ghostPath.Clear();
-                    Console.WriteLine("Ghost arrived at home, respawning...");
+                    ghostStates[ghostIndex] = GhostState.Respawning;
+                    stateTimers[ghostIndex] = 0;
+                    ghostPaths[ghostIndex].Clear();
+                    Console.WriteLine($"Ghost {ghostIndex} arrived at home, respawning...");
                     return;
                 }
 
-                // 유령집으로 가는 경로가 없으면 새로 계산
-                if (ghostPath.Count == 0)
+                if (ghostPaths[ghostIndex].Count == 0)
                 {
-                    Console.WriteLine($"Ghost eaten! Finding path to home from ({ghostPos.X}, {ghostPos.Y})");
-                    ghostPath = FindPathAStar(ghostPos, GHOST_HOME);
+                    Console.WriteLine($"Ghost {ghostIndex} eaten! Finding path to home from ({ghostPositions[ghostIndex].X}, {ghostPositions[ghostIndex].Y})");
+                    ghostPaths[ghostIndex] = FindPathAStar(ghostPositions[ghostIndex], GHOST_START_POSITIONS[ghostIndex], ghostIndex);
 
-                    if (ghostPath.Count == 0)
+                    if (ghostPaths[ghostIndex].Count == 0)
                     {
-                        // 경로를 찾을 수 없으면 직접 이동
-                        ghostPos = GHOST_HOME;
-                        Console.WriteLine("Direct teleport to ghost home");
+                        ghostPositions[ghostIndex] = GHOST_START_POSITIONS[ghostIndex];
+                        Console.WriteLine($"Direct teleport ghost {ghostIndex} to home");
                         return;
                     }
                 }
             }
             else
             {
-                // 일반 상태에서의 이동 (기존 로직)
-                if (ghostPath.Count == 0)
+                if (ghostPaths[ghostIndex].Count == 0)
                 {
-                    Point targetPos = GetGhostTarget();
-                    Console.WriteLine($"Finding path from ({ghostPos.X}, {ghostPos.Y}) to ({targetPos.X}, {targetPos.Y})");
-                    ghostPath = FindPathAStar(ghostPos, targetPos);
+                    Point targetPos = GetGhostTarget(ghostIndex);
+                    ghostPaths[ghostIndex] = FindPathAStar(ghostPositions[ghostIndex], targetPos, ghostIndex);
 
-                    if (ghostPath.Count == 0)
+                    if (ghostPaths[ghostIndex].Count == 0)
                     {
-                        Console.WriteLine("No path found! Trying neighbors...");
-                        var neighbors = GetNeighbors(ghostPos);
+                        var neighbors = GetNeighbors(ghostPositions[ghostIndex], ghostIndex);
                         if (neighbors.Count > 0)
                         {
-                            ghostPath.Enqueue(neighbors[0]);
-                            Console.WriteLine($"Moving to neighbor: ({neighbors[0].X}, {neighbors[0].Y})");
+                            ghostPaths[ghostIndex].Enqueue(neighbors[0]);
                         }
                         else
                         {
-                            Console.WriteLine($"Ghost completely stuck at ({ghostPos.X}, {ghostPos.Y})!");
+                            Console.WriteLine($"Ghost {ghostIndex} completely stuck!");
                             return;
                         }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Path found with {ghostPath.Count} steps");
                     }
                 }
             }
 
-            // 유령 이동
-            if (ghostPath.Count > 0)
+            if (ghostPaths[ghostIndex].Count > 0)
             {
-                Point newPos = ghostPath.Dequeue();
+                Point newPos = ghostPaths[ghostIndex].Dequeue();
 
-                if (IsValidPositionForGhost(newPos))
+                if (IsValidPositionForGhost(newPos, ghostIndex))
                 {
-                    ghostPos = newPos;
-                    Console.WriteLine($"Ghost moved to ({ghostPos.X}, {ghostPos.Y})");
+                    ghostPositions[ghostIndex] = newPos;
                 }
                 else
                 {
-                    Console.WriteLine($"ERROR: Blocked move to ({newPos.X}, {newPos.Y})");
-                    ghostPath.Clear();
+                    Console.WriteLine($"ERROR: Ghost {ghostIndex} blocked move to ({newPos.X}, {newPos.Y})");
+                    ghostPaths[ghostIndex].Clear();
                     return;
                 }
             }
 
-            // 유령 위치 업데이트
-            if (pictureBox1 != null)
+            if (ghostPictureBoxes[ghostIndex] != null)
             {
-                pictureBox1.Location = MazeToPixel(ghostPos);
+                ghostPictureBoxes[ghostIndex].Location = MazeToPixel(ghostPositions[ghostIndex]);
             }
         }
 
-        private bool IsValidPositionForGhost(Point pos)
+        private bool IsValidPositionForGhost(Point pos, int ghostIndex)
         {
             if (pos.X < 0 || pos.X >= MAZE_COLS || pos.Y < 0 || pos.Y >= MAZE_ROWS)
                 return false;
 
             int cellValue = MazeGrid[pos.Y, pos.X];
 
-            // 유령은 벽(1)을 제외한 모든 곳을 지날 수 있음
-            // Eaten 상태일 때는 유령집 내부(0)도 지날 수 있음
-            if (currentGhostState == GhostState.Eaten || currentGhostState == GhostState.Respawning)
+            // 벽 체크
+            if (cellValue == 1) return false;
+
+            // 다른 유령과의 충돌 체크 (같은 위치에 있으면 안됨)
+            for (int i = 0; i < GHOST_COUNT; i++)
             {
-                return cellValue != 1; // 벽만 막음
+                if (i != ghostIndex && ghostPositions[i] == pos)
+                {
+                    return false; // 다른 유령이 이미 있는 위치
+                }
             }
-            else
-            {
-                return cellValue != 1; // 일반 상태에서도 벽만 막음
-            }
+
+            return true;
         }
 
-        private Point GetGhostTarget()
+        private Point GetGhostTarget(int ghostIndex)
         {
-            switch (currentGhostState)
+            switch (ghostStates[ghostIndex])
             {
                 case GhostState.ExitingHome:
-                    // 유령집에서 입구로 이동
                     return GHOST_SPAWN;
 
                 case GhostState.Chase:
-                    // 팩맨이 시야 범위 내에 있을 때만 추적
-                    if (IsValidPosition(pacmanPos) && GetManhattanDistance(ghostPos, pacmanPos) <= GHOST_SIGHT_RANGE)
+                    if (IsValidPosition(pacmanPos) && GetManhattanDistance(ghostPositions[ghostIndex], pacmanPos) <= GHOST_SIGHT_RANGE)
                     {
-                        Console.WriteLine($"Ghost spotted Pacman! Distance: {GetManhattanDistance(ghostPos, pacmanPos)}");
                         return pacmanPos;
                     }
                     else
                     {
-                        // 시야 범위 밖이면 랜덤하게 이동
-                        return GetRandomTarget();
+                        return GetRandomTarget(ghostIndex);
                     }
 
                 case GhostState.Scatter:
-                    // 기본적으로 랜덤하게 움직임
-                    return GetRandomTarget();
+                    return GetRandomTarget(ghostIndex);
 
                 case GhostState.Frightened:
-                    // 무서워할 때는 팩맨에서 멀어지는 방향으로
-                    return GetFleeTarget();
+                    return GetFleeTarget(ghostIndex);
 
                 case GhostState.Respawning:
-                    return new Point(9, 9);
+                    return GHOST_START_POSITIONS[ghostIndex];
 
                 default:
-                    return new Point(9, 9);
+                    return GHOST_START_POSITIONS[ghostIndex];
             }
         }
 
-        // 맨하탄 거리 계산
-        private int GetManhattanDistance(Point a, Point b)
+        private Point GetRandomTarget(int ghostIndex)
         {
-            return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
-        }
+            Random rand = new Random(ghostIndex + DateTime.Now.Millisecond); // 각 유령마다 다른 시드
 
-        // 랜덤한 목표 지점 선택
-        private Point GetRandomTarget()
-        {
-            Random rand = new Random();
-
-            // 현재 위치에서 이동 가능한 방향들 중 랜덤 선택
-            var neighbors = GetNeighbors(ghostPos);
+            var neighbors = GetNeighbors(ghostPositions[ghostIndex], ghostIndex);
 
             if (neighbors.Count > 0)
             {
-                // 가끔은 현재 방향을 유지하도록 (더 자연스러운 움직임)
-                if (ghostPath.Count > 0 && rand.Next(100) < 70) // 70% 확률로 현재 경로 유지
+                if (ghostPaths[ghostIndex].Count > 0 && rand.Next(100) < 70)
                 {
-                    return ghostPath.Peek();
+                    return ghostPaths[ghostIndex].Peek();
                 }
 
-                // 랜덤하게 방향 선택
                 Point randomDirection = neighbors[rand.Next(neighbors.Count)];
-
-                // 선택된 방향으로 2-4칸 정도 이동할 목표점 설정
                 int steps = rand.Next(2, 5);
                 Point target = randomDirection;
 
                 for (int i = 1; i < steps; i++)
                 {
                     Point nextStep = new Point(
-                        target.X + (randomDirection.X - ghostPos.X),
-                        target.Y + (randomDirection.Y - ghostPos.Y)
+                        target.X + (randomDirection.X - ghostPositions[ghostIndex].X),
+                        target.Y + (randomDirection.Y - ghostPositions[ghostIndex].Y)
                     );
 
-                    if (IsValidPositionForGhost(nextStep))
+                    if (IsValidPositionForGhost(nextStep, ghostIndex))
                         target = nextStep;
                     else
                         break;
@@ -660,25 +667,22 @@ namespace PACKMAN
                 return target;
             }
 
-            // 이동할 곳이 없으면 안전한 위치로
-            return new Point(9, 9);
+            return GHOST_START_POSITIONS[ghostIndex];
         }
 
-        // 팩맨에서 도망가는 목표 지점 (Frightened 상태용)
-        private Point GetFleeTarget()
+        private Point GetFleeTarget(int ghostIndex)
         {
-            Random rand = new Random();
-            Point bestTarget = ghostPos;
+            Random rand = new Random(ghostIndex * 1000);
+            Point bestTarget = ghostPositions[ghostIndex];
             int maxDistance = 0;
 
-            // 여러 후보 중에서 팩맨에서 가장 먼 곳 선택
             for (int attempts = 0; attempts < 10; attempts++)
             {
                 int x = rand.Next(1, MAZE_COLS - 1);
                 int y = rand.Next(1, MAZE_ROWS - 1);
                 Point candidate = new Point(x, y);
 
-                if (MazeGrid[y, x] != 1) // 벽이 아니면
+                if (MazeGrid[y, x] != 1)
                 {
                     int distance = GetManhattanDistance(candidate, pacmanPos);
                     if (distance > maxDistance)
@@ -692,64 +696,189 @@ namespace PACKMAN
             return bestTarget;
         }
 
-        private void UpdateGhostSprite()
+        private void UpdateGhostSprite(int ghostIndex)
         {
-            if (pictureBox1 == null) return;
+            if (ghostPictureBoxes[ghostIndex] == null) return;
 
-            switch (currentGhostState)
+            switch (ghostStates[ghostIndex])
             {
                 case GhostState.ExitingHome:
                 case GhostState.Scatter:
                 case GhostState.Chase:
-                    // 항상 빨간 유령으로 고정
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
-                    pictureBox1.Visible = true;
+                    ghostPictureBoxes[ghostIndex].Image = ghostImages[ghostIndex];
+                    ghostPictureBoxes[ghostIndex].Visible = true;
                     break;
 
                 case GhostState.Frightened:
-                    // 무서워할 때만 파란색
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.ScaredGhost;
-                    pictureBox1.Visible = true;
+                    ghostPictureBoxes[ghostIndex].Image = KW_Pacman.Properties.Resource.ScaredGhost;
+                    ghostPictureBoxes[ghostIndex].Visible = true;
                     break;
 
                 case GhostState.Eaten:
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.GhostEye; // 눈알만 표시
-                    pictureBox1.Visible = true;
+                    ghostPictureBoxes[ghostIndex].Image = KW_Pacman.Properties.Resource.GhostEye;
+                    ghostPictureBoxes[ghostIndex].Visible = true;
                     break;
 
                 case GhostState.Respawning:
-                    // 깜빡이는 효과
-                    bool blink = (stateTimer / 10) % 2 == 0;
-                    pictureBox1.Image = KW_Pacman.Properties.Resource.RedGhost;
-                    pictureBox1.Visible = blink;
+                    bool blink = (stateTimers[ghostIndex] / 10) % 2 == 0;
+                    ghostPictureBoxes[ghostIndex].Image = ghostImages[ghostIndex];
+                    ghostPictureBoxes[ghostIndex].Visible = blink;
                     break;
             }
         }
 
+        private List<Point> GetNeighbors(Point p, int ghostIndex)
+        {
+            var dirs = new Point[] {
+        new Point(0, 1), new Point(1, 0), new Point(0, -1), new Point(-1, 0)
+    };
+
+            var neighbors = new List<Point>();
+            foreach (var d in dirs)
+            {
+                int nx = p.X + d.X, ny = p.Y + d.Y;
+
+                if (nx >= 0 && nx < MAZE_COLS && ny >= 0 && ny < MAZE_ROWS)
+                {
+                    int cellValue = MazeGrid[ny, nx];
+
+                    if (ghostStates[ghostIndex] == GhostState.Eaten || ghostStates[ghostIndex] == GhostState.Respawning)
+                    {
+                        if (cellValue != 1)
+                        {
+                            neighbors.Add(new Point(nx, ny));
+                        }
+                    }
+                    else
+                    {
+                        if (cellValue != 1)
+                        {
+                            // 다른 유령과의 충돌 체크
+                            bool occupied = false;
+                            for (int i = 0; i < GHOST_COUNT; i++)
+                            {
+                                if (i != ghostIndex && ghostPositions[i].X == nx && ghostPositions[i].Y == ny)
+                                {
+                                    occupied = true;
+                                    break;
+                                }
+                            }
+                            if (!occupied)
+                                neighbors.Add(new Point(nx, ny));
+                        }
+                    }
+                }
+            }
+
+            return neighbors;
+        }
+
+        private Queue<Point> FindPathAStar(Point start, Point goal, int ghostIndex)
+        {
+            var path = new Queue<Point>();
+
+            if (!IsValidPositionForGhost(start, ghostIndex) || !IsValidPositionForGhost(goal, ghostIndex))
+            {
+                Console.WriteLine($"Invalid positions for ghost {ghostIndex} - Start: ({start.X}, {start.Y}), Goal: ({goal.X}, {goal.Y})");
+                return path;
+            }
+
+            // 기존 A* 알고리즘과 동일하지만 GetNeighbors 호출 시 ghostIndex 전달
+            var openSet = new SortedSet<(int f, Point pos)>(
+                Comparer<(int f, Point pos)>.Create(
+                    (a, b) => a.f == b.f ? a.pos.GetHashCode().CompareTo(b.pos.GetHashCode()) : a.f.CompareTo(b.f)
+                )
+            );
+            var cameFrom = new Dictionary<Point, Point>();
+            var gScore = new Dictionary<Point, int>();
+            var fScore = new Dictionary<Point, int>();
+
+            openSet.Add((0, start));
+            gScore[start] = 0;
+            fScore[start] = Heuristic(start, goal);
+
+            int iterations = 0;
+            while (openSet.Count > 0 && iterations < 1000)
+            {
+                iterations++;
+                var current = openSet.Min.pos;
+                if (current == goal)
+                {
+                    var totalPath = new List<Point> { current };
+                    while (cameFrom.ContainsKey(current))
+                    {
+                        current = cameFrom[current];
+                        totalPath.Add(current);
+                    }
+                    totalPath.Reverse();
+                    for (int i = 1; i < totalPath.Count; i++)
+                        path.Enqueue(totalPath[i]);
+
+                    return path;
+                }
+
+                openSet.Remove(openSet.Min);
+                foreach (var neighbor in GetNeighbors(current, ghostIndex))
+                {
+                    int tentativeG = gScore[current] + 1;
+                    if (!gScore.ContainsKey(neighbor) || tentativeG < gScore[neighbor])
+                    {
+                        cameFrom[neighbor] = current;
+                        gScore[neighbor] = tentativeG;
+                        fScore[neighbor] = tentativeG + Heuristic(neighbor, goal);
+                        if (!openSet.Contains((fScore[neighbor], neighbor)))
+                            openSet.Add((fScore[neighbor], neighbor));
+                    }
+                }
+            }
+
+            if (iterations >= 1000)
+                Console.WriteLine($"A* timeout for ghost {ghostIndex}!");
+
+            return path;
+        }
+
+        // 맨하탄 거리 계산
+        private int GetManhattanDistance(Point a, Point b)
+        {
+            return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+        }
+
         private void CheckCollisions()
         {
-            if (pictureBox1 != null && pictureBoxPacman != null)
-            {
-                Rectangle ghostBounds = pictureBox1.Bounds;
-                Rectangle pacmanBounds = pictureBoxPacman.Bounds;
+            if (pictureBoxPacman == null) return;
 
-                if (ghostBounds.IntersectsWith(pacmanBounds))
+            Rectangle pacmanBounds = pictureBoxPacman.Bounds;
+
+            // 모든 유령과 충돌 체크
+            for (int i = 0; i < GHOST_COUNT; i++)
+            {
+                if (ghostPictureBoxes[i] != null)
                 {
-                    if (currentGhostState == GhostState.Frightened && player.IsPowered())
+                    Rectangle ghostBounds = ghostPictureBoxes[i].Bounds;
+
+                    if (ghostBounds.IntersectsWith(pacmanBounds))
                     {
-                        // 유령을 먹음
-                        currentGhostState = GhostState.Eaten;
-                        stateTimer = 0;
-                        ghostPath.Clear();
-                        score += 200; // 유령을 먹으면 보너스 점수
-                        UpdateScore();
-                        Console.WriteLine("Ghost eaten by powered Pacman! Ghost returning home...");
-                    }
-                    else if (currentGhostState != GhostState.Eaten &&
-                             currentGhostState != GhostState.Respawning)
-                    {
-                        player.Die();
-                        Console.WriteLine("Pacman caught by ghost!");
+                        if (player.IsPowered() &&
+                            ghostStates[i] != GhostState.Eaten &&
+                            ghostStates[i] != GhostState.Respawning)
+                        {
+                            // 유령을 먹음
+                            ghostStates[i] = GhostState.Eaten;
+                            stateTimers[i] = 0;
+                            ghostPaths[i].Clear();
+                            score += 200;
+                            UpdateScore();
+                            Console.WriteLine($"Ghost {i} eaten by powered Pacman! Ghost returning home...");
+                        }
+                        else if (!player.IsPowered() &&
+                                 ghostStates[i] != GhostState.Eaten &&
+                                 ghostStates[i] != GhostState.Respawning)
+                        {
+                            player.Die();
+                            Console.WriteLine($"Pacman caught by ghost {i}!");
+                            return; // 하나의 유령에게만 잡히도록
+                        }
                     }
                 }
             }
@@ -770,12 +899,15 @@ namespace PACKMAN
             player.ResetToPosition(spawnPos, spawnDir);
             player.lives = 3; // 목숨 3개로 초기화
 
-            // 유령 초기화
-            ghostPos = new Point(9, 9);
-            ghostPath.Clear();
-            currentGhostState = GhostState.Scatter;
-            stateTimer = 0;
-            ghostMoveTimer = 0;
+            // 유령 초기화 (기존 단일 유령 코드 삭제하고 배열 버전으로 교체)
+            for (int i = 0; i < GHOST_COUNT; i++)
+            {
+                ghostPositions[i] = GHOST_START_POSITIONS[i];
+                ghostPaths[i].Clear();
+                ghostStates[i] = GhostState.ExitingHome;
+                stateTimers[i] = i * 20;
+                ghostMoveTimers[i] = 0;
+            }
 
             // UI 업데이트
             UpdateScore();
@@ -795,9 +927,15 @@ namespace PACKMAN
             isGameover = true;
             timer1.Stop();
 
+            // 플레이어 이름 입력 받기
+            string playerName = GetPlayerName();
+
+            // 점수 저장
+            ScoreManager.SaveScore(playerName, score);
+
             // 게임오버 다이얼로그 표시
             DialogResult result = MessageBox.Show(
-                $"게임 오버!\n\n최종 점수: {score}\n\n다시 플레이 하시겠습니까?",
+                $"게임 오버!\n\n플레이어: {playerName}\n최종 점수: {score}\n\n다시 플레이 하시겠습니까?",
                 "Game Over",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question
@@ -810,9 +948,33 @@ namespace PACKMAN
             }
             else
             {
-                // 애플리케이션 종료
-                Application.Exit();
+                // 폼 닫기 (메인메뉴로 돌아가기)
+                this.Close();
             }
+        }
+
+        // 플레이어 이름 입력 받는 메서드 추가
+        private string GetPlayerName()
+        {
+            string playerName = Microsoft.VisualBasic.Interaction.InputBox(
+                "당신의 이름을 입력하세요:",
+                "점수 기록",
+                "Player"
+            );
+
+            // 이름이 비어있거나 취소했을 경우 기본값 사용
+            if (string.IsNullOrWhiteSpace(playerName))
+            {
+                playerName = "Anonymous";
+            }
+
+            // 이름 길이 제한 (20자)
+            if (playerName.Length > 20)
+            {
+                playerName = playerName.Substring(0, 20);
+            }
+
+            return playerName;
         }
 
         private void OnPlayerDied(object sender, EventArgs e)
@@ -849,21 +1011,22 @@ namespace PACKMAN
 
         private void ResetPositions()
         {
-            // 팩맨 초기 위치로 리셋
             spawnPos = new PointF(9 * CELL_SIZE, 1 * CELL_SIZE);
             player.ResetToPosition(spawnPos, spawnDir);
 
-            // 유령을 유령집으로 리셋하고 나오는 상태로 설정
-            ghostPos = GHOST_HOME; // 유령집에서 시작
-            ghostPath.Clear();
-            currentGhostState = GhostState.ExitingHome; // 집에서 나오는 상태
-            stateTimer = 0;
-            ghostMoveTimer = 0;
-
-            // PictureBox 위치 업데이트
-            if (pictureBox1 != null)
+            // 모든 유령 리셋
+            for (int i = 0; i < GHOST_COUNT; i++)
             {
-                pictureBox1.Location = MazeToPixel(ghostPos);
+                ghostPositions[i] = GHOST_START_POSITIONS[i];
+                ghostPaths[i].Clear();
+                ghostStates[i] = GhostState.ExitingHome;
+                stateTimers[i] = i * 20; // 각 유령이 다른 시점에 시작
+                ghostMoveTimers[i] = 0;
+
+                if (ghostPictureBoxes[i] != null)
+                {
+                    ghostPictureBoxes[i].Location = MazeToPixel(ghostPositions[i]);
+                }
             }
 
             if (pictureBoxPacman != null)
@@ -871,121 +1034,13 @@ namespace PACKMAN
                 pictureBoxPacman.Location = Point.Round(spawnPos);
             }
 
-            // 팩맨 위치 업데이트
             pacmanPos = PixelToMaze(Point.Round(spawnPos));
-
-            Console.WriteLine("Positions reset - Pacman and Ghost back to start, Ghost exiting home");
-        }
-
-        // A* 알고리즘
-        private Queue<Point> FindPathAStar(Point start, Point goal)
-        {
-            var path = new Queue<Point>();
-
-            if (!IsValidPosition(start) || !IsValidPosition(goal))
-            {
-                Console.WriteLine($"Invalid positions - Start: ({start.X}, {start.Y}), Goal: ({goal.X}, {goal.Y})");
-                return path;
-            }
-
-            var openSet = new SortedSet<(int f, Point pos)>(
-                Comparer<(int f, Point pos)>.Create(
-                    (a, b) => a.f == b.f ? a.pos.GetHashCode().CompareTo(b.pos.GetHashCode()) : a.f.CompareTo(b.f)
-                )
-            );
-            var cameFrom = new Dictionary<Point, Point>();
-            var gScore = new Dictionary<Point, int>();
-            var fScore = new Dictionary<Point, int>();
-
-            openSet.Add((0, start));
-            gScore[start] = 0;
-            fScore[start] = Heuristic(start, goal);
-
-            int iterations = 0;
-            while (openSet.Count > 0 && iterations < 1000)
-            {
-                iterations++;
-                var current = openSet.Min.pos;
-                if (current == goal)
-                {
-                    var totalPath = new List<Point> { current };
-                    while (cameFrom.ContainsKey(current))
-                    {
-                        current = cameFrom[current];
-                        totalPath.Add(current);
-                    }
-                    totalPath.Reverse();
-                    for (int i = 1; i < totalPath.Count; i++)
-                        path.Enqueue(totalPath[i]);
-
-                    return path;
-                }
-
-                openSet.Remove(openSet.Min);
-                foreach (var neighbor in GetNeighbors(current))
-                {
-                    int tentativeG = gScore[current] + 1;
-                    if (!gScore.ContainsKey(neighbor) || tentativeG < gScore[neighbor])
-                    {
-                        cameFrom[neighbor] = current;
-                        gScore[neighbor] = tentativeG;
-                        fScore[neighbor] = tentativeG + Heuristic(neighbor, goal);
-                        if (!openSet.Contains((fScore[neighbor], neighbor)))
-                            openSet.Add((fScore[neighbor], neighbor));
-                    }
-                }
-            }
-
-            if (iterations >= 1000)
-                Console.WriteLine("A* timeout!");
-
-            return path;
+            Console.WriteLine("Positions reset - Pacman and all ghosts back to start");
         }
 
         private int Heuristic(Point a, Point b)
         {
             return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
-        }
-
-        private List<Point> GetNeighbors(Point p)
-        {
-            var dirs = new Point[] {
-        new Point(0, 1),  // 아래
-        new Point(1, 0),  // 오른쪽
-        new Point(0, -1), // 위
-        new Point(-1, 0)  // 왼쪽
-    };
-
-            var neighbors = new List<Point>();
-            foreach (var d in dirs)
-            {
-                int nx = p.X + d.X, ny = p.Y + d.Y;
-
-                if (nx >= 0 && nx < MAZE_COLS && ny >= 0 && ny < MAZE_ROWS)
-                {
-                    int cellValue = MazeGrid[ny, nx];
-
-                    // 유령 상태에 따른 이동 가능 여부 판단
-                    if (currentGhostState == GhostState.Eaten || currentGhostState == GhostState.Respawning)
-                    {
-                        // 먹힌 상태에서는 벽만 막음 (유령집 통과 가능)
-                        if (cellValue != 1)
-                        {
-                            neighbors.Add(new Point(nx, ny));
-                        }
-                    }
-                    else
-                    {
-                        // 일반 상태에서는 벽만 막음
-                        if (cellValue != 1)
-                        {
-                            neighbors.Add(new Point(nx, ny));
-                        }
-                    }
-                }
-            }
-
-            return neighbors;
         }
 
         private Point MazeToPixel(Point mazePos)
@@ -1000,20 +1055,23 @@ namespace PACKMAN
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (isGameover) return; // 게임오버 시 키 입력 무시
+            if (isGameover) return;
 
-            // player가 null인지 확인
             if (player == null)
             {
                 Console.WriteLine("Player is null!");
                 return;
             }
 
-            // 플레이어가 죽은 상태면 키 입력 무시
             if (player.State == PlayerState.Dead)
                 return;
 
-            player.SetNormal();
+            // SetNormal() 호출 제거 또는 조건부로 변경
+            if (player.State == PlayerState.Stopped)
+            {
+                player.SetNormal(); // 정지 상태일 때만 Normal로 변경
+            }
+
             Direction dir;
             switch (e.KeyCode)
             {

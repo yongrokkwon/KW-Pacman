@@ -1,127 +1,191 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Forms.Design;
 
 namespace KW_Pacman
 {
     public partial class ScoreBoard : Form
     {
-        //스코어 파일의 각 라인은 유저 이름과 점수를 저장합니다
-        private string scoreFile = "score.csv";
-
-        private string fullPath;
-        private string lvwCol_1 = "UserRank";
-        private string lvwCol_2 = "UserName";
-        private string lvwCol_3 = "UserScore";
+        private ListView listViewScores;
+        private Button btnClose;
+        private Button btnClear;
+        private Label lblTitle;
 
         public ScoreBoard()
         {
             InitializeComponent();
-
-            ofd.InitialDirectory = getInitialPath();
-            ofd.FileName = scoreFile;
-            fullPath = ofd.InitialDirectory + scoreFile;
+            InitializeScoreBoard();
+            LoadScores();
         }
 
-        //스코어 파일의 경로를 가져옵니다
-        private string getInitialPath()
+        private void InitializeScoreBoard()
         {
-            string[] temp = AppDomain.CurrentDomain.BaseDirectory.Split('\\');
-            string path = "";
-            for (int i = 0; i < temp.Length - 4; i++)
-                path += (temp[i] + '\\');
+            // 폼 설정
+            this.Text = "최고 점수";
+            this.Size = new Size(500, 400);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.Black;
 
-            return path;
-        }
-
-        //스코어보드 폼을 초기화합니다
-        private void ScoreBoard_Load(object sender, EventArgs e)
-        {
-            lvwScoreBoard.View = View.Details;
-            lvwScoreBoard.Columns.Add(lvwCol_1, "등수");
-            lvwScoreBoard.Columns.Add(lvwCol_2, "이름");
-            lvwScoreBoard.Columns.Add(lvwCol_3, "점수");
-            lvwScoreBoard.Columns.Add("last", "last");
-
-            lvwScoreBoard.Columns[0].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
-            lvwScoreBoard.Columns[1].Width = 200;
-            lvwScoreBoard.Columns[2].AutoResize(ColumnHeaderAutoResizeStyle.HeaderSize);
-            lvwScoreBoard.Columns.RemoveByKey("last");
-
-            lvwScoreBoard.Columns[0].TextAlign = HorizontalAlignment.Left;
-            lvwScoreBoard.Columns[1].TextAlign = HorizontalAlignment.Center;
-            lvwScoreBoard.Columns[2].TextAlign = HorizontalAlignment.Center;
-
-            setScoreBoard();
-        }
-
-        //스코어보드 리스트를 로드합니다
-        private void setScoreBoard()
-        {
-            var scoreList = getScores();
-            for (int i = 0; i < scoreList.Count; i++)
+            // 제목 라벨
+            lblTitle = new Label()
             {
-                var lvwItem = new ListViewItem(new string[lvwScoreBoard.Columns.Count]);
+                Text = "🏆 최고 점수 순위 🏆",
+                Font = new Font("Arial", 16, FontStyle.Bold),
+                ForeColor = Color.Yellow,
+                BackColor = Color.Black,
+                Location = new Point(20, 20),
+                Size = new Size(440, 30),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            this.Controls.Add(lblTitle);
 
-                for (int k = 0; k < lvwScoreBoard.Columns.Count; k++)
-                    lvwItem.SubItems[k].Name = lvwScoreBoard.Columns[k].Name;
+            // 점수 목록 표시용 ListView
+            listViewScores = new ListView()
+            {
+                Location = new Point(20, 60),
+                Size = new Size(440, 250),
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = true,
+                BackColor = Color.White,
+                ForeColor = Color.Gray,
+                Font = new Font("Arial", 10)
+            };
 
-                lvwItem.SubItems[lvwCol_1].Text = (i + 1).ToString();
-                lvwItem.SubItems[lvwCol_2].Text = scoreList[i][0];
-                lvwItem.SubItems[lvwCol_3].Text = scoreList[i][1];
+            // 컬럼 추가
+            listViewScores.Columns.Add("순위", 60, HorizontalAlignment.Center);
+            listViewScores.Columns.Add("플레이어", 150, HorizontalAlignment.Left);
+            listViewScores.Columns.Add("점수", 100, HorizontalAlignment.Right);
+            listViewScores.Columns.Add("날짜", 120, HorizontalAlignment.Center);
 
-                lvwScoreBoard.Items.Add(lvwItem);
-            }
+            this.Controls.Add(listViewScores);
 
+            // 닫기 버튼
+            btnClose = new Button()
+            {
+                Text = "닫기",
+                Location = new Point(300, 320),
+                Size = new Size(80, 30),
+                BackColor = Color.White,
+                ForeColor = Color.Black,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+            btnClose.Click += BtnClose_Click;
+            this.Controls.Add(btnClose);
+
+            // 기록 초기화 버튼
+            btnClear = new Button()
+            {
+                Text = "기록 초기화",
+                Location = new Point(390, 320),
+                Size = new Size(80, 30),
+                BackColor = Color.White,
+                ForeColor = Color.Black,
+                Font = new Font("Arial", 10, FontStyle.Bold)
+            };
+            btnClear.Click += BtnClear_Click;
+            this.Controls.Add(btnClear);
         }
 
-        //스코어 파일을 읽고 반환합니다
-        private List<string[]> getScores()
+        private void LoadScores()
         {
-            StreamReader sr = new StreamReader(fullPath);
-            var csvList = new List<string[]>();
             try
             {
-                Text = Path.GetFileName(fullPath);
-                string line;
-                while ((line = sr.ReadLine()) != null)
+                // 기존 항목 클리어
+                listViewScores.Items.Clear();
+
+                // 점수 불러오기
+                List<ScoreRecord> scores = ScoreManager.LoadScores();
+
+                if (scores.Count == 0)
                 {
-                    csvList.Add(line.Split(','));
+                    // 기록이 없을 때
+                    ListViewItem noScoreItem = new ListViewItem("-");
+                    noScoreItem.SubItems.Add("기록이 없습니다");
+                    noScoreItem.SubItems.Add("-");
+                    noScoreItem.SubItems.Add("-");
+                    noScoreItem.ForeColor = Color.Gray;
+                    listViewScores.Items.Add(noScoreItem);
+                }
+                else
+                {
+                    // 점수 목록 표시 (상위 10개)
+                    for (int i = 0; i < Math.Min(scores.Count, 10); i++)
+                    {
+                        ScoreRecord score = scores[i];
+                        ListViewItem item = new ListViewItem((i + 1).ToString());
+                        item.SubItems.Add(score.PlayerName);
+                        item.SubItems.Add(score.Score.ToString("N0"));
+                        item.SubItems.Add(score.Date.ToString("MM/dd HH:mm"));
+
+                        // 1등은 골드 색상
+                        if (i == 0)
+                        {
+                            item.ForeColor = Color.Gold;
+                            item.Font = new Font("Arial", 10, FontStyle.Bold);
+                        }
+                        // 2등은 실버 색상
+                        else if (i == 1)
+                        {
+                            item.ForeColor = Color.Silver;
+                        }
+                        // 3등은 브론즈 색상
+                        else if (i == 2)
+                        {
+                            item.ForeColor = Color.Orange;
+                        }
+                        else
+                        {
+                            item.ForeColor = Color.White;
+                        }
+
+                        listViewScores.Items.Add(item);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Text = "";
-                MessageBox.Show(ex.Message, "스코어보드 파일을 찾을 수 없습니다.",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"점수를 불러오는 중 오류가 발생했습니다: {ex.Message}",
+                              "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally
-            {
-                sr.Close();
-            }
-
-            //스코어보드 정렬
-            csvList.Sort((string[] a, string[] b) => {
-                int t = int.Parse(a[1]), s = int.Parse(b[1]);
-                if (t.Equals(s)) return a[0].CompareTo(b[0]);
-                return t.CompareTo(s) * -1; 
-            });
-
-            return csvList;
         }
 
-        //스코어보드 폼 닫기
-        private void btnReturn_Click(object sender, EventArgs e)
+        private void BtnClose_Click(object sender, EventArgs e)
         {
             this.Close();
+        }
+
+        private void BtnClear_Click(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show(
+                "정말로 모든 점수 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+                "기록 삭제 확인",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
+
+            if (result == DialogResult.Yes)
+            {
+                ScoreManager.ClearScores();
+                LoadScores();
+                MessageBox.Show("모든 점수 기록이 삭제되었습니다.", "완료",
+                              MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        // 폼이 표시될 때마다 점수 새로고침
+        protected override void SetVisibleCore(bool value)
+        {
+            base.SetVisibleCore(value);
+            if (value && this.Created)
+            {
+                LoadScores();
+            }
         }
     }
 }

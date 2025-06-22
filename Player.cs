@@ -29,7 +29,9 @@ namespace KW_Pacman
         private int readyTimer = 2000;      // ms
         private int frameTick;
         private const int FrameMs = 80;
-        private const float SPEED = 6f; // px/frame
+        private float currentSpeed = 6f; // px/frame
+        private const float NORMAL_SPEED = 6f;
+        private const float POWERED_SPEED = 9f; // 파워 상태일 때 1.5배 속도
         private Point gridPosition;  // 격자 위치
         private PointF targetPosition;  // 목표 픽셀 위치
         private bool isMovingToTarget = false;
@@ -63,6 +65,7 @@ namespace KW_Pacman
                 if (powerTimer <= 0)
                 {
                     State = PlayerState.Normal;
+                    currentSpeed = NORMAL_SPEED; // 속도 복원
                 }
             }
 
@@ -102,6 +105,7 @@ namespace KW_Pacman
         {
             State = PlayerState.Powered;
             powerTimer = POWER_DURATION;
+            currentSpeed = POWERED_SPEED; // 속도 증가
         }
 
         public bool IsPowered()
@@ -205,7 +209,7 @@ namespace KW_Pacman
             float deltaY = targetPosition.Y - Position.Y;
             float distance = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
 
-            if (distance <= SPEED)
+            if (distance <= currentSpeed) // SPEED 대신 currentSpeed 사용
             {
                 // 목표 도달
                 Position = targetPosition;
@@ -214,8 +218,8 @@ namespace KW_Pacman
             else
             {
                 // 목표 방향으로 이동
-                float moveX = (deltaX / distance) * SPEED;
-                float moveY = (deltaY / distance) * SPEED;
+                float moveX = (deltaX / distance) * currentSpeed; // SPEED 대신 currentSpeed 사용
+                float moveY = (deltaY / distance) * currentSpeed; // SPEED 대신 currentSpeed 사용
                 Position = new PointF(Position.X + moveX, Position.Y + moveY);
             }
         }
@@ -236,6 +240,7 @@ namespace KW_Pacman
             State = PlayerState.Ready;
             readyTimer = 2000;
             FrameIndex = 0;
+            currentSpeed = NORMAL_SPEED; // 속도 초기화
 
             // 격자 위치와 이동 관련 변수들 초기화
             gridPosition = new Point((int)spawn.X / 24, (int)spawn.Y / 24);
@@ -257,6 +262,7 @@ namespace KW_Pacman
             State = PlayerState.Ready;
             readyTimer = 2000;
             FrameIndex = 0;
+            currentSpeed = NORMAL_SPEED; // 속도 초기화
 
             // 격자 위치와 이동 관련 변수들 초기화
             gridPosition = new Point((int)newPos.X / 24, (int)newPos.Y / 24);
@@ -281,6 +287,7 @@ namespace KW_Pacman
         public void SetNormal()
         {
             State = PlayerState.Normal;
+            currentSpeed = NORMAL_SPEED; // 속도 초기화
         }
 
         public void SetStopped()
